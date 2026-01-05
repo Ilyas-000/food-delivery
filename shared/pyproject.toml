@@ -1,0 +1,79 @@
+[project]
+name = "food-delivery-shared"
+version = "0.1.0"
+description = "Shared code for Food Delivery microservices"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+authors = [
+    { name = "Food Delivery Team" }
+]
+
+dependencies = [
+    # Core
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+
+    # Async
+    "httpx>=0.25.2",
+    "aiofiles>=23.2.1",
+
+    # Kafka
+    "aiokafka>=0.10.0",
+
+    # Redis
+    "redis[hiredis]>=5.0.1",
+
+    # PostgreSQL
+    "asyncpg>=0.29.0",
+    "sqlalchemy[asyncio]>=2.0.23",
+    "alembic>=1.13.0",
+
+    # JWT & Security
+    "pyjwt[crypto]>=2.8.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.6",
+
+    # Utilities
+    "python-dateutil>=2.8.2",
+    "pytz>=2023.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Package configuration
+[tool.hatch.build.targets.wheel]
+packages = ["src/shared"]
+
+# Ruff inherits from root pyproject.toml
+[tool.ruff]
+extend = "../pyproject.toml"
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+# Allow missing imports for third-party libraries
+[[tool.mypy.overrides]]
+module = [
+    "aiokafka.*",
+    "passlib.*",
+]
+ignore_missing_imports = true

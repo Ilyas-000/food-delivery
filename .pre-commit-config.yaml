@@ -24,10 +24,13 @@ repos:
         name: mypy
         additional_dependencies:
           - aiokafka
-          - pydantic
+          - pydantic>=2.5.0
+          - pydantic-settings>=2.1.0
+          - fastapi>=0.109.0
+          - uvicorn>=0.25.0
           - pyjwt
           - redis
-          - sqlalchemy
+          - sqlalchemy[asyncio]>=2.0.23
           - types-passlib
           - types-redis
           - types-requests

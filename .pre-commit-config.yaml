@@ -28,6 +28,7 @@ repos:
           - pyjwt
           - redis
           - sqlalchemy
+          - types-passlib
           - types-redis
           - types-requests
         args: [--config-file=pyproject.toml]

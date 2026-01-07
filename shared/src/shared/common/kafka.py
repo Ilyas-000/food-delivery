@@ -22,7 +22,7 @@ def _default_serializer(value: Any) -> bytes:
 
 
 class KafkaProducer:
-    """Thin wrapper over aiokafka producer with JSON-friendly defaults."""
+    """Kafka producer wrapper."""
 
     def __init__(
         self,
@@ -51,7 +51,7 @@ class KafkaProducer:
 
 
 class KafkaConsumer:
-    """Thin wrapper over aiokafka consumer for async iteration."""
+    """Kafka consumer wrapper."""
 
     def __init__(
         self,

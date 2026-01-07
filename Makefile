@@ -23,7 +23,7 @@ install: ## Install production dependencies
 
 dev-install: ## Install development dependencies
 	@echo "$(BLUE)Installing development dependencies...$(NC)"
-	uv sync --frozen --all-extras
+	uv sync --frozen --all-extras --all-packages
 	pre-commit install
 	pre-commit install --hook-type commit-msg
 	@echo "$(GREEN)Development environment ready!$(NC)"

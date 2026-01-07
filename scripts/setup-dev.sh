@@ -125,7 +125,7 @@ fi
 
 # Install Python dependencies
 log_info "Installing Python dependencies with uv..."
-uv sync --all-extras
+uv sync --all-extras --all-packages
 log_success "Python dependencies installed"
 
 # Install pre-commit hooks

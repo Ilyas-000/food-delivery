@@ -6,7 +6,7 @@ import redis.asyncio as redis
 
 
 class RedisClient:
-    """Small async Redis wrapper for common operations."""
+    """Async Redis client wrapper."""
 
     def __init__(
         self,

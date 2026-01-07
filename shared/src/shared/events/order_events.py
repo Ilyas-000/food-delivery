@@ -2,32 +2,41 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
-from shared.events.base import BaseEvent
+from .base import BaseEvent
 
 
 class OrderCreatedEvent(BaseEvent):
-    """Emitted when an order is created in PENDING status."""
+    """Order created event."""
 
-    event_type: str = "order.order.created"
-    order_id: str
-    user_id: str
+    event_type: str = Field(default="order.created", frozen=True)
+    aggregate_type: str = Field(default="order", frozen=True)
+
     restaurant_id: str
     total_amount: Decimal = Field(ge=0)
     currency: str = Field(default="RUB", min_length=3, max_length=3)
 
+    @model_validator(mode="after")
+    def ensure_user_id_set(self) -> OrderCreatedEvent:
+        """Require user_id."""
+        if not self.user_id:
+            msg = "user_id is required for OrderCreatedEvent"
+            raise ValueError(msg)
+        return self
+
 
 class OrderConfirmedEvent(BaseEvent):
-    """Emitted when an order is confirmed after saga steps."""
+    """Order confirmed event."""
 
-    event_type: str = "order.order.confirmed"
-    order_id: str
+    event_type: str = Field(default="order.confirmed", frozen=True)
+    aggregate_type: str = Field(default="order", frozen=True)
 
 
 class OrderCancelledEvent(BaseEvent):
-    """Emitted when an order is cancelled with an optional reason."""
+    """Order cancelled event."""
 
-    event_type: str = "order.order.cancelled"
-    order_id: str
+    event_type: str = Field(default="order.cancelled", frozen=True)
+    aggregate_type: str = Field(default="order", frozen=True)
+
     reason: str | None = None

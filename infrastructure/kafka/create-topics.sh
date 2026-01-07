@@ -2,32 +2,120 @@
 
 set -euo pipefail
 
+# Configuration
 KAFKA_CONTAINER=${KAFKA_CONTAINER:-food-delivery-kafka}
 BOOTSTRAP_SERVER=${BOOTSTRAP_SERVER:-localhost:9092}
-PARTITIONS=${PARTITIONS:-1}
-REPLICATION_FACTOR=${REPLICATION_FACTOR:-1}
+PARTITIONS=${PARTITIONS:-3}  # 3 partitions for better parallelism
+REPLICATION_FACTOR=${REPLICATION_FACTOR:-1}  # 1 for local dev
 
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
+NC='\033[0m'
+
+# Topic definitions
+# Format: "topic_name:partitions:retention_ms"
+# retention_ms: -1 = infinite, 86400000 = 1 day, 604800000 = 7 days
 TOPICS=(
-  "order.order.created"
-  "order.order.confirmed"
-  "order.order.cancelled"
-  "payment.payment.reserved"
-  "payment.payment.failed"
-  "delivery.delivery.assigned"
-  "delivery.delivery.completed"
-  "notification.notification.sent"
+  # Order Service Events
+  "order.created:3:604800000"
+  "order.confirmed:3:604800000"
+  "order.cancelled:3:604800000"
+  "order.delivered:3:604800000"
+
+  # Payment Service Events
+  "payment.reserved:3:604800000"
+  "payment.completed:3:604800000"
+  "payment.failed:3:604800000"
+  "payment.refunded:3:604800000"
+
+  # Delivery Service Events
+  "delivery.assigned:3:604800000"
+  "delivery.picked_up:3:604800000"
+  "delivery.in_transit:3:604800000"
+  "delivery.completed:3:604800000"
+  "delivery.location_updated:3:86400000"  # 1 day retention for location updates
+
+  # User Service Events
+  "user.registered:3:604800000"
+  "user.updated:3:604800000"
+
+  # Restaurant Service Events
+  "restaurant.created:3:604800000"
+  "restaurant.menu_updated:3:604800000"
+
+  # Notification Service Events
+  "notification.email_sent:3:86400000"
+  "notification.push_sent:3:86400000"
+
+  # Review Service Events
+  "review.created:3:604800000"
+
+  # Saga Coordination (for Order Saga)
+  "saga.order.step_completed:3:604800000"
+  "saga.order.step_failed:3:604800000"
 )
 
-echo "Creating Kafka topics in container: ${KAFKA_CONTAINER}"
+echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║  Kafka Topics Creation                 ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
+echo ""
+echo -e "${BLUE}Container:${NC} $KAFKA_CONTAINER"
+echo -e "${BLUE}Bootstrap:${NC} $BOOTSTRAP_SERVER"
+echo -e "${BLUE}Default Partitions:${NC} $PARTITIONS"
+echo -e "${BLUE}Replication Factor:${NC} $REPLICATION_FACTOR"
+echo ""
 
-for topic in "${TOPICS[@]}"; do
+# Wait for Kafka to be ready
+echo -e "${YELLOW}Waiting for Kafka to be ready...${NC}"
+MAX_RETRIES=30
+RETRY=0
+while ! docker exec "$KAFKA_CONTAINER" kafka-broker-api-versions --bootstrap-server "$BOOTSTRAP_SERVER" &> /dev/null; do
+  RETRY=$((RETRY + 1))
+  if [ $RETRY -gt $MAX_RETRIES ]; then
+    echo -e "${YELLOW}Kafka is not ready after ${MAX_RETRIES} attempts. Exiting.${NC}"
+    exit 1
+  fi
+  echo -e "${YELLOW}Attempt $RETRY/$MAX_RETRIES...${NC}"
+  sleep 2
+done
+echo -e "${GREEN}✓ Kafka is ready${NC}"
+echo ""
+
+# Create topics
+echo -e "${BLUE}Creating topics...${NC}"
+for topic_config in "${TOPICS[@]}"; do
+  IFS=':' read -r topic partitions retention <<< "$topic_config"
+
+  # Use default partitions if not specified
+  partitions=${partitions:-$PARTITIONS}
+  retention=${retention:-604800000}  # Default 7 days
+
+  echo -e "${BLUE}→ ${topic}${NC} (partitions: $partitions, retention: $retention ms)"
+
   docker exec "$KAFKA_CONTAINER" kafka-topics \
     --bootstrap-server "$BOOTSTRAP_SERVER" \
     --create \
     --if-not-exists \
     --topic "$topic" \
-    --partitions "$PARTITIONS" \
-    --replication-factor "$REPLICATION_FACTOR"
+    --partitions "$partitions" \
+    --replication-factor "$REPLICATION_FACTOR" \
+    --config retention.ms="$retention" \
+    2>&1 | grep -v "already exists" || true
 done
 
-echo "Kafka topics ready."
+echo ""
+echo -e "${GREEN}✓ All topics created${NC}"
+echo ""
+
+# List all topics
+echo -e "${BLUE}Listing all topics:${NC}"
+docker exec "$KAFKA_CONTAINER" kafka-topics \
+  --bootstrap-server "$BOOTSTRAP_SERVER" \
+  --list
+
+echo ""
+echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║  Topics ready! 🎉                      ║${NC}"
+echo -e "${GREEN}╚════════════════════════════════════════╝${NC}"

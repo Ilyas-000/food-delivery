@@ -2,7 +2,6 @@
 name = "food-delivery-shared"
 version = "0.1.0"
 description = "Shared code for Food Delivery microservices"
-readme = "README.md"
 requires-python = ">=3.12,<3.13"
 authors = [
     { name = "Food Delivery Team" }
@@ -13,25 +12,18 @@ dependencies = [
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
 
-    # Async
+    # Async HTTP & File I/O
     "httpx>=0.25.2",
     "aiofiles>=23.2.1",
 
-    # Kafka
+    # Kafka (event bus)
     "aiokafka>=0.10.0",
 
-    # Redis
+    # Redis (cache, session, pub/sub)
     "redis[hiredis]>=5.0.1",
 
-    # PostgreSQL
-    "asyncpg>=0.29.0",
-    "sqlalchemy[asyncio]>=2.0.23",
-    "alembic>=1.13.0",
-
-    # JWT & Security
+    # JWT utilities (shared across services)
     "pyjwt[crypto]>=2.8.0",
-    "passlib[bcrypt]>=1.7.4",
-    "python-multipart>=0.0.6",
 
     # Utilities
     "python-dateutil>=2.8.2",
@@ -74,6 +66,5 @@ warn_unused_ignores = true
 [[tool.mypy.overrides]]
 module = [
     "aiokafka.*",
-    "passlib.*",
 ]
 ignore_missing_imports = true

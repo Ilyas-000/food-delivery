@@ -110,6 +110,71 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
+  # ==========================================
+  # Microservices
+  # ==========================================
+
+  user-service:
+    build:
+      context: ..
+      dockerfile: services/user-service/Dockerfile
+    container_name: food-delivery-user-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    environment:
+      # Service Configuration
+      USER_SERVICE_SERVICE_NAME: user-service
+      USER_SERVICE_ENVIRONMENT: ${ENVIRONMENT:-development}
+      USER_SERVICE_DEBUG: ${DEBUG:-true}
+      USER_SERVICE_LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      # API Configuration
+      USER_SERVICE_API_HOST: 0.0.0.0
+      USER_SERVICE_API_PORT: 8001
+
+      # Database Configuration
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      USER_SERVICE_DB_NAME: ${USER_SERVICE_DB_NAME:-user_service_db}
+      USER_SERVICE_DB_USER: ${USER_SERVICE_DB_USER:-user_service_user}
+      USER_SERVICE_DB_PASSWORD: ${USER_SERVICE_DB_PASSWORD:-user_service_password_change_me}
+      USER_SERVICE_DATABASE_POOL_SIZE: 10
+      USER_SERVICE_DATABASE_MAX_OVERFLOW: 20
+      USER_SERVICE_DATABASE_ECHO: false
+
+      # JWT Configuration
+      USER_SERVICE_JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-super-secret-key-change-in-production}
+      USER_SERVICE_JWT_ALGORITHM: HS256
+      USER_SERVICE_JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      USER_SERVICE_JWT_REFRESH_TOKEN_EXPIRE_DAYS: 7
+
+      # Security
+      USER_SERVICE_PASSWORD_BCRYPT_ROUNDS: 12
+
+      # Redis Configuration
+      USER_SERVICE_REDIS_HOST: redis
+      USER_SERVICE_REDIS_PORT: 6379
+      USER_SERVICE_REDIS_DB: 0
+
+      # CORS (для development разрешаем все)
+      USER_SERVICE_CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8000"]'
+    volumes:
+      - ../services/user-service/src:/app/src:ro  # Mount для hot-reload в development
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 volumes:
   postgres_data:
   redis_data:

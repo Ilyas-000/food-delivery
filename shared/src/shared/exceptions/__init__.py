@@ -1,19 +1,9 @@
-from shared.exceptions.base import (
-    ConflictError,
-    ForbiddenError,
-    NotFoundError,
-    ServiceUnavailableError,
-    SharedError,
-    UnauthorizedError,
-    ValidationError,
-)
+"""
+Shared base exceptions.
 
-__all__ = [
-    "ConflictError",
-    "ForbiddenError",
-    "NotFoundError",
-    "ServiceUnavailableError",
-    "SharedError",
-    "UnauthorizedError",
-    "ValidationError",
-]
+Note: Most exceptions should be service-specific!
+Only truly common exceptions belong here (HTTP-like errors for inter-service communication).
+
+Import explicitly:
+    from shared.exceptions.base import NotFoundError, ConflictError
+"""

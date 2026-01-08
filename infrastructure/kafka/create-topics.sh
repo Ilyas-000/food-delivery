@@ -19,42 +19,42 @@ NC='\033[0m'
 # retention_ms: -1 = infinite, 86400000 = 1 day, 604800000 = 7 days
 TOPICS=(
   # Order Service Events
-  "order.created:3:604800000"
-  "order.confirmed:3:604800000"
-  "order.cancelled:3:604800000"
-  "order.delivered:3:604800000"
+  "order-service.order.created:3:604800000"
+  "order-service.order.confirmed:3:604800000"
+  "order-service.order.cancelled:3:604800000"
+  "order-service.order.delivered:3:604800000"
 
   # Payment Service Events
-  "payment.reserved:3:604800000"
-  "payment.completed:3:604800000"
-  "payment.failed:3:604800000"
-  "payment.refunded:3:604800000"
+  "payment-service.payment.reserved:3:604800000"
+  "payment-service.payment.completed:3:604800000"
+  "payment-service.payment.failed:3:604800000"
+  "payment-service.payment.refunded:3:604800000"
 
   # Delivery Service Events
-  "delivery.assigned:3:604800000"
-  "delivery.picked_up:3:604800000"
-  "delivery.in_transit:3:604800000"
-  "delivery.completed:3:604800000"
-  "delivery.location_updated:3:86400000"  # 1 day retention for location updates
+  "delivery-service.delivery.assigned:3:604800000"
+  "delivery-service.delivery.picked_up:3:604800000"
+  "delivery-service.delivery.in_transit:3:604800000"
+  "delivery-service.delivery.completed:3:604800000"
+  "delivery-service.delivery.location_updated:3:86400000"  # 1 day retention for location updates
 
   # User Service Events
-  "user.registered:3:604800000"
-  "user.updated:3:604800000"
+  "user-service.user.registered:3:604800000"
+  "user-service.user.updated:3:604800000"
 
   # Restaurant Service Events
-  "restaurant.created:3:604800000"
-  "restaurant.menu_updated:3:604800000"
+  "restaurant-service.restaurant.created:3:604800000"
+  "restaurant-service.restaurant.menu_updated:3:604800000"
 
   # Notification Service Events
-  "notification.email_sent:3:86400000"
-  "notification.push_sent:3:86400000"
+  "notification-service.notification.email_sent:3:86400000"
+  "notification-service.notification.push_sent:3:86400000"
 
   # Review Service Events
-  "review.created:3:604800000"
+  "review-service.review.created:3:604800000"
 
   # Saga Coordination (for Order Saga)
-  "saga.order.step_completed:3:604800000"
-  "saga.order.step_failed:3:604800000"
+  "order-service.saga.step_completed:3:604800000"
+  "order-service.saga.step_failed:3:604800000"
 )
 
 echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Annotated, Literal
 
-from pydantic import Field, model_validator
+from annotated_types import Ge, MaxLen, MinLen
+from pydantic import model_validator
 
 from .base import BaseEvent
 
@@ -10,12 +12,12 @@ from .base import BaseEvent
 class OrderCreatedEvent(BaseEvent):
     """Order created event."""
 
-    event_type: str = Field(default="order.created", frozen=True)
-    aggregate_type: str = Field(default="order", frozen=True)
+    event_type: Literal["order-service.order.created"] = "order-service.order.created"
+    aggregate_type: Literal["order"] = "order"
 
     restaurant_id: str
-    total_amount: Decimal = Field(ge=0)
-    currency: str = Field(default="RUB", min_length=3, max_length=3)
+    total_amount: Annotated[Decimal, Ge(0)]
+    currency: Annotated[str, MinLen(3), MaxLen(3)] = "RUB"
 
     @model_validator(mode="after")
     def ensure_user_id_set(self) -> OrderCreatedEvent:
@@ -29,14 +31,14 @@ class OrderCreatedEvent(BaseEvent):
 class OrderConfirmedEvent(BaseEvent):
     """Order confirmed event."""
 
-    event_type: str = Field(default="order.confirmed", frozen=True)
-    aggregate_type: str = Field(default="order", frozen=True)
+    event_type: Literal["order-service.order.confirmed"] = "order-service.order.confirmed"
+    aggregate_type: Literal["order"] = "order"
 
 
 class OrderCancelledEvent(BaseEvent):
     """Order cancelled event."""
 
-    event_type: str = Field(default="order.cancelled", frozen=True)
-    aggregate_type: str = Field(default="order", frozen=True)
+    event_type: Literal["order-service.order.cancelled"] = "order-service.order.cancelled"
+    aggregate_type: Literal["order"] = "order"
 
     reason: str | None = None

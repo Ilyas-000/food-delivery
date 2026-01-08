@@ -1,12 +1,13 @@
-from shared.events.base import BaseEvent
-from shared.events.order_events import OrderCancelledEvent, OrderConfirmedEvent, OrderCreatedEvent
-from shared.events.payment_events import PaymentFailedEvent, PaymentReservedEvent
+"""
+Event definitions - contracts between microservices.
 
-__all__ = [
-    "BaseEvent",
-    "OrderCancelledEvent",
-    "OrderConfirmedEvent",
-    "OrderCreatedEvent",
-    "PaymentFailedEvent",
-    "PaymentReservedEvent",
-]
+Events are shared because:
+- They define the interface between services
+- All services must use the same event structure
+- Changes to events affect multiple services
+
+Import explicitly:
+    from shared.events.order_events import OrderCreatedEvent, OrderConfirmedEvent
+    from shared.events.payment_events import PaymentReservedEvent
+    from shared.events.base import BaseEvent
+"""

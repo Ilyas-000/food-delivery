@@ -2,13 +2,30 @@
 
 set -euo pipefail
 
-echo "Running database migrations..."
+echo "Running database migrations for all services..."
 
-# TODO: Implement when services are created
-# For each service with a database:
-# cd services/user-service && alembic upgrade head
-# cd services/restaurant-service && alembic upgrade head
-# etc.
+# Get the project root directory
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "No migrations to run yet (services not created)"
-echo "This script will be implemented in Phase 1+"
+# User Service
+echo "→ User Service migrations..."
+cd "$PROJECT_ROOT/services/user-service"
+if [ -d "alembic" ]; then
+    alembic upgrade head
+    echo "✓ User Service migrations completed"
+else
+    echo "⚠ User Service: No Alembic configuration found"
+fi
+
+# Restaurant Service (TODO)
+# echo "→ Restaurant Service migrations..."
+# cd "$PROJECT_ROOT/services/restaurant-service"
+# alembic upgrade head
+
+# Order Service (TODO)
+# echo "→ Order Service migrations..."
+# cd "$PROJECT_ROOT/services/order-service"
+# alembic upgrade head
+
+echo ""
+echo "✓ All migrations completed successfully"

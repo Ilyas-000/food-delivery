@@ -1,0 +1,253 @@
+"""
+User Service - Main application entrypoint.
+
+Этот модуль инициализирует FastAPI приложение, настраивает middleware,
+регистрирует routes и обрабатывает lifecycle events (startup/shutdown).
+"""
+
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+from datetime import UTC
+import logging
+import sys
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import structlog
+
+from src.config import settings
+from src.infrastructure.database import base
+from src.interface.api.exception_handlers import register_exception_handlers
+from src.interface.api.v1.routes import auth
+
+# Configure structlog (unified logging across all modules)
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.StackInfoRenderer(),
+        structlog.dev.set_exc_info,
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
+        structlog.dev.ConsoleRenderer() if settings.debug else structlog.processors.JSONRenderer(),
+    ],
+    wrapper_class=structlog.make_filtering_bound_logger(
+        getattr(logging, settings.log_level.upper(), logging.INFO)
+    ),
+    context_class=dict,
+    logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
+    cache_logger_on_first_use=True,
+)
+
+logger = structlog.get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """
+    Lifecycle manager для FastAPI приложения.
+
+    Этот context manager управляет startup и shutdown событиями приложения.
+    В startup мы инициализируем подключения к БД, Redis, Kafka и т.д.
+    В shutdown мы корректно закрываем все соединения.
+
+    Args:
+        app: FastAPI application instance
+
+    Yields:
+        None: Control flow during application lifetime
+    """
+    # === STARTUP ===
+    logger.info(f"Starting {settings.service_name} in {settings.environment} environment")
+    logger.info(f"API available at http://{settings.api_host}:{settings.api_port}")
+    logger.info(f"API docs at http://{settings.api_host}:{settings.api_port}/docs")
+
+    # Инициализация Database connection pool
+    logger.info("Initializing database connection pool")
+    base.AsyncSessionLocal = base.create_async_session_maker(settings.database_url)
+    logger.info("Database connection pool initialized")
+
+    # TODO: Инициализация Redis connection
+    # TODO: Инициализация Kafka producer/consumer
+
+    logger.info(f"{settings.service_name} started successfully")
+
+    yield  # Приложение работает
+
+    # === SHUTDOWN ===
+    logger.info(f"Shutting down {settings.service_name}")
+
+    # Закрытие Database connection pool
+    if base.AsyncSessionLocal is not None:
+        logger.info("Closing database connection pool")
+        base.AsyncSessionLocal = None
+
+    # TODO: Закрытие Redis connection
+    # TODO: Закрытие Kafka producer/consumer
+
+    logger.info(f"{settings.service_name} shutdown complete")
+
+
+def create_app() -> FastAPI:
+    """
+    Factory function для создания FastAPI приложения.
+
+    Этот паттерн (Application Factory) позволяет:
+    - Легко создавать приложение с разными настройками для тестов
+    - Избегать глобального состояния
+    - Упростить тестирование
+
+    Returns:
+        FastAPI: Configured FastAPI application
+    """
+    app = FastAPI(
+        title="User Service API",
+        description="Authentication and user profile management service",
+        version="0.1.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+        debug=settings.debug,
+        lifespan=lifespan,
+    )
+
+    # === MIDDLEWARE ===
+
+    # CORS Middleware (должен быть первым)
+    # В продакшене CORS настройки должны быть более строгими
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=settings.cors_allow_credentials,
+        allow_methods=settings.cors_allow_methods,
+        allow_headers=settings.cors_allow_headers,
+    )
+
+    # TODO: Request ID middleware (для distributed tracing)
+    # TODO: Logging middleware (логирование всех requests)
+
+    # === EXCEPTION HANDLERS ===
+    # Register domain exception handlers BEFORE routes
+    # This maps domain exceptions to HTTP responses
+    register_exception_handlers(app)
+
+    # === ROUTES ===
+
+    # Register API v1 routes
+    app.include_router(auth.router, prefix=settings.api_prefix, tags=["auth"])
+
+    # Health check endpoint (не требует аутентификации)
+    # Format follows docs/API_CONVENTIONS.md
+    @app.get("/health", tags=["Health"])
+    async def health_check() -> dict[str, str | dict[str, str]]:
+        """
+        Health check endpoint following API_CONVENTIONS.md format.
+
+        Используется для:
+        - Kubernetes liveness/readiness probes
+        - Load balancer health checks
+        - Monitoring systems
+
+        Returns:
+            dict: Health status with version, timestamp, and dependencies
+
+        Response format (API_CONVENTIONS.md):
+            {
+                "status": "healthy",
+                "version": "0.1.0",
+                "timestamp": "2026-01-08T...",
+                "dependencies": {
+                    "database": "healthy",
+                    "redis": "not_configured",
+                    "kafka": "not_configured"
+                }
+            }
+        """
+        from datetime import datetime
+
+        # TODO: Add real health checks for dependencies
+        # For now, mark unconfigured dependencies as "not_configured"
+        return {
+            "status": "healthy",
+            "version": "0.1.0",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "dependencies": {
+                "database": "healthy",  # TODO: real check
+                "redis": "not_configured",  # TODO: implement
+                "kafka": "not_configured",  # TODO: implement
+            },
+        }
+
+    # === GLOBAL EXCEPTION HANDLER ===
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(_request, exc: Exception) -> JSONResponse:  # type: ignore[no-untyped-def]
+        """
+        Глобальный обработчик исключений following API_CONVENTIONS.md.
+
+        В продакшене не должны возвращаться детали ошибки пользователю.
+        Вместо этого логируем ошибку и возвращаем generic message.
+
+        Args:
+            request: FastAPI request
+            exc: Exception instance
+
+        Returns:
+            JSONResponse: Error response in standard format
+        """
+        from datetime import datetime
+        import uuid
+
+        logger.error(f"Unhandled exception: {exc}", exc_info=True)
+
+        # В development показываем детали ошибки
+        if settings.debug:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "Internal Server Error",
+                        "details": {
+                            "exception_type": type(exc).__name__,
+                            "exception_message": str(exc),
+                        },
+                        "request_id": str(uuid.uuid4()),
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
+                },
+            )
+
+        # В production возвращаем generic ошибку
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Internal Server Error",
+                    "details": {},
+                    "request_id": str(uuid.uuid4()),
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            },
+        )
+
+    return app
+
+
+# Создаем приложение
+app = create_app()
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    # Запуск для локальной разработки
+    # В продакшене используем: uvicorn src.main:app --host 0.0.0.0 --port 8001
+    uvicorn.run(
+        "src.main:app",
+        host=settings.api_host,
+        port=settings.api_port,
+        reload=settings.debug,
+        log_level=settings.log_level.lower(),
+    )

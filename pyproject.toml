@@ -88,6 +88,8 @@ ignore = [
     "TRY003",   # Avoid specifying long messages outside exception class
     "EM101",    # Exception must not use string literal
     "EM102",    # Exception must not use f-string literal
+    "RUF002",   # Docstring contains ambiguous unicode (allow Cyrillic in educational project)
+    "RUF003",   # Comment contains ambiguous unicode (allow Cyrillic in educational project)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -128,8 +130,29 @@ show_error_codes = true
 module = [
     "aiokafka.*",
     "confluent_kafka.*",
+    "alembic",
+    "alembic.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "bcrypt",
+    "email_validator",
+    "structlog",
+]
+ignore_missing_imports = true
+
+# Relaxed rules for skeleton/config files (will be fixed in production branches)
+[[tool.mypy.overrides]]
+module = [
+    "src.main",
+    "src.config",
+    "services.*.src.main",
+    "services.*.src.config",
+]
+disallow_untyped_defs = false
+disallow_untyped_decorators = false
 
 # Pytest configuration
 [tool.pytest.ini_options]

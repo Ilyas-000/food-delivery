@@ -1,0 +1,53 @@
+# Engineering Conventions
+
+This document captures the agreed engineering rules and style for the project.
+When code changes, keep this file in sync.
+
+## Architecture Boundaries
+
+- Domain is pure: no framework or infrastructure dependencies.
+- Application depends on Domain only.
+- Infrastructure implements Application interfaces.
+- Interface (API, Kafka consumers) depends on Application.
+- Never import SQLAlchemy (or any infrastructure) inside application or domain.
+
+## Data Modeling & Validation
+
+- Domain uses plain classes/dataclasses and Value Objects for business rules.
+- Application DTOs are Pydantic models (BaseModel) for internal data transfer.
+- API schemas are Pydantic models with minimal type parsing only.
+- Business validation lives in Domain (single source of truth).
+- Use `Annotated` for validation constraints in Pydantic models.
+- Use `Field` only when needed (default_factory, explicit schema behavior).
+- Avoid verbose `Field` examples in code; keep examples in docs when needed.
+
+## Errors & HTTP Responses
+
+- Error format must follow `docs/API_CONVENTIONS.md`.
+- Domain exceptions map to HTTP responses in interface layer handlers.
+- Use 422 for domain validation errors unless API conventions say otherwise.
+
+## Configuration & Environment
+
+- Service settings use `USER_SERVICE_` (or service-specific prefix).
+- Shared PostgreSQL settings use `POSTGRES_*`.
+- Service-specific DB overrides: `SERVICE_DB_NAME/USER/PASSWORD`.
+- Avoid `*_DATABASE_URL` and hardcoded host/port in code.
+- All runtime config should come from settings.
+
+## Logging & Tracing
+
+- Use `structlog` consistently across services.
+- Log at API boundaries (request-level) and key business events only.
+- Prefer structured fields (service, request_id, user_id) over free-form text.
+
+## Kafka & Events
+
+- Topic naming: `{service}.{entity}.{action}`.
+- `event_type` must match the Kafka topic exactly.
+- Event contracts live in `shared/src/shared/events`.
+
+## Health Endpoints
+
+- Provide `/health` for liveness.
+- `/ready` is optional; include only if readiness checks differ from liveness.

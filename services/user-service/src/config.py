@@ -1,115 +1,108 @@
 """
 User Service Configuration.
 
-Загружает настройки из переменных окружения с использованием pydantic-settings.
-Все чувствительные данные (пароли, токены) должны передаваться через environment variables.
+Loads settings from environment variables using pydantic-settings.
 """
 
-from functools import lru_cache
+from functools import cached_property, lru_cache
+from typing import cast
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_BASE_ENV_CONFIG = cast(
+    SettingsConfigDict,
+    {
+        "env_file": "../../.env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+        "extra": "ignore",
+    },
+)
+
+
+class PostgresSettings(BaseSettings):
+    """PostgreSQL settings shared across services."""
+
+    model_config = SettingsConfigDict(env_prefix="POSTGRES_", **_BASE_ENV_CONFIG)
+
+    host: str = "localhost"
+    port: int = 5432
+    user: str = "postgres"
+    password: str = "postgres"
 
 
 class Settings(BaseSettings):
-    """
-    Настройки User Service.
-
-    Все параметры загружаются из переменных окружения.
-    Используется prefix "USER_SERVICE_" для избежания конфликтов с другими сервисами.
-    """
+    """User Service Settings."""
 
     model_config = SettingsConfigDict(
         env_prefix="USER_SERVICE_",
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",  # Игнорируем лишние переменные окружения
+        **_BASE_ENV_CONFIG,
     )
 
-    # Service Configuration
-    service_name: str = Field(default="user-service", description="Service name for logging")
-    environment: str = Field(
-        default="development", description="Environment: development, staging, production"
-    )
-    debug: bool = Field(default=True, description="Debug mode")
-    log_level: str = Field(default="INFO", description="Logging level")
+    # Service
+    service_name: str = "user-service"
+    environment: str = "development"
+    debug: bool = True
+    log_level: str = "INFO"
 
-    # API Configuration
-    api_host: str = Field(default="0.0.0.0", description="API host")  # nosec B104
-    api_port: int = Field(default=8001, description="API port")
-    api_prefix: str = Field(default="/api/v1", description="API prefix")
+    # API
+    api_host: str = "0.0.0.0"  # nosec B104
+    api_port: int = 8001
+    api_prefix: str = "/api/v1"
 
-    # Database Configuration
-    database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5433/user_service",
-        description="PostgreSQL connection URL",
-    )
-    database_pool_size: int = Field(default=10, description="Database connection pool size")
-    database_max_overflow: int = Field(default=20, description="Max connections overflow")
-    database_echo: bool = Field(default=False, description="Echo SQL queries (for debugging)")
+    # Database
+    db_name: str = "user_service_db"  # Uses prefix: USER_SERVICE_DB_NAME
+    db_user: str | None = None  # Uses prefix: USER_SERVICE_DB_USER
+    db_password: str | None = None  # Uses prefix: USER_SERVICE_DB_PASSWORD
 
-    # JWT Configuration
-    jwt_secret_key: str = Field(
-        default="your-super-secret-key-change-in-production",
-        description="JWT secret key (MUST be changed in production)",
-    )
-    jwt_algorithm: str = Field(default="HS256", description="JWT signing algorithm")
-    jwt_access_token_expire_minutes: int = Field(
-        default=30,
-        description="Access token expiration time in minutes",
-    )
-    jwt_refresh_token_expire_days: int = Field(
-        default=7,
-        description="Refresh token expiration time in days",
-    )
-
-    # Security
-    password_bcrypt_rounds: int = Field(
-        default=12,
-        description="Bcrypt rounds for password hashing (higher = more secure but slower)",
-    )
-
-    # CORS
-    cors_origins: list[str] = Field(
-        default=["http://localhost:3000", "http://localhost:8000"],
-        description="Allowed CORS origins",
-    )
-    cors_allow_credentials: bool = Field(default=True, description="Allow credentials in CORS")
-    cors_allow_methods: list[str] = Field(default=["*"], description="Allowed HTTP methods")
-    cors_allow_headers: list[str] = Field(default=["*"], description="Allowed HTTP headers")
-
-    # Redis (for sessions, cache)
-    redis_host: str = Field(default="localhost", description="Redis host")
-    redis_port: int = Field(default=6379, description="Redis port")
-    redis_db: int = Field(default=0, description="Redis database number")
-    redis_password: str | None = Field(default=None, description="Redis password (if any)")
-
-    # Health Check
-    health_check_interval_seconds: int = Field(
-        default=30,
-        description="Health check interval",
-    )
+    database_pool_size: int = 10
+    database_max_overflow: int = 20
+    database_echo: bool = False
 
     @property
-    def database_url_str(self) -> str:
-        """Get database URL as string."""
-        return str(self.database_url)
+    def database_url(self) -> str:
+        """Construct PostgreSQL URL from separate variables."""
+        user = self.db_user or self.postgres.user
+        password = self.db_password or self.postgres.password
+        return (
+            f"postgresql+asyncpg://{user}:{password}"
+            f"@{self.postgres.host}:{self.postgres.port}/{self.db_name}"
+        )
+
+    @cached_property
+    def postgres(self) -> PostgresSettings:
+        """Lazy-load shared PostgreSQL settings."""
+        return PostgresSettings()
+
+    # JWT
+    jwt_secret_key: str = "your-super-secret-key-change-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 30
+    jwt_refresh_token_expire_days: int = 7
+
+    # Security
+    password_bcrypt_rounds: int = 12
+
+    # CORS
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+    cors_allow_credentials: bool = True
+    cors_allow_methods: list[str] = ["*"]
+    cors_allow_headers: list[str] = ["*"]
+
+    # Redis
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: str | None = None
+
+    # Health Check
+    health_check_interval_seconds: int = 30
 
 
 @lru_cache
 def get_settings() -> Settings:
-    """
-    Получить настройки приложения (singleton pattern).
-
-    Используем @lru_cache для создания единственного экземпляра настроек.
-    Это гарантирует, что все части приложения используют одни и те же настройки.
-
-    Returns:
-        Settings: Настройки приложения
-    """
+    """Get application settings (singleton pattern)."""
     return Settings()
 
 
-# Export для удобства импорта
 settings = get_settings()

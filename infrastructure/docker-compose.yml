@@ -141,7 +141,11 @@ services:
       USER_SERVICE_API_PORT: 8001
 
       # Database Configuration
-      USER_SERVICE_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/user_service
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      USER_SERVICE_DB_NAME: ${USER_SERVICE_DB_NAME:-user_service_db}
+      USER_SERVICE_DB_USER: ${USER_SERVICE_DB_USER:-user_service_user}
+      USER_SERVICE_DB_PASSWORD: ${USER_SERVICE_DB_PASSWORD:-user_service_password_change_me}
       USER_SERVICE_DATABASE_POOL_SIZE: 10
       USER_SERVICE_DATABASE_MAX_OVERFLOW: 20
       USER_SERVICE_DATABASE_ECHO: false

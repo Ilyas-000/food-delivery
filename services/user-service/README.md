@@ -96,7 +96,9 @@ uvicorn src.main:app --reload --port 8001
 
 ## Переменные окружения
 
-Все переменные используют prefix `USER_SERVICE_`:
+Большинство переменных используют prefix `USER_SERVICE_`.
+Параметры подключения к PostgreSQL берутся из общих `POSTGRES_*` и могут
+переопределяться через `USER_SERVICE_DB_*`.
 
 ```bash
 # Service
@@ -109,8 +111,16 @@ USER_SERVICE_LOG_LEVEL=INFO
 USER_SERVICE_API_HOST=0.0.0.0
 USER_SERVICE_API_PORT=8001
 
-# Database
-USER_SERVICE_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/user_service
+# Database (shared PostgreSQL)
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+
+# Database (service-specific overrides)
+USER_SERVICE_DB_NAME=user_service_db
+USER_SERVICE_DB_USER=user_service_user
+USER_SERVICE_DB_PASSWORD=user_service_password_change_me
 
 # JWT
 USER_SERVICE_JWT_SECRET_KEY=your-secret-key
@@ -127,14 +137,13 @@ USER_SERVICE_REDIS_PORT=6379
 ### Health Checks
 
 - `GET /health` - простая проверка доступности
-- `GET /ready` - проверка готовности с зависимостями
 
-### Authentication (TODO)
+### Authentication
 
-- `POST /api/v1/auth/register` - регистрация
-- `POST /api/v1/auth/login` - логин
-- `POST /api/v1/auth/refresh` - обновление токена
-- `POST /api/v1/auth/logout` - выход
+- ✅ `POST /api/v1/auth/register` - регистрация (IMPLEMENTED)
+- `POST /api/v1/auth/login` - логин (TODO)
+- `POST /api/v1/auth/refresh` - обновление токена (TODO)
+- `POST /api/v1/auth/logout` - выход (TODO)
 
 ### Users (TODO)
 
@@ -197,10 +206,18 @@ ruff check .
 mypy src/
 ```
 
+## Implemented Features
+
+- ✅ **User Registration** - Clean Architecture with domain validation
+  - Email Value Object (RFC-compliant with email-validator)
+  - Password Value Object (min 8 chars, complexity requirements)
+  - Domain exceptions mapped to HTTP responses (API_CONVENTIONS.md)
+  - Alembic migrations configured for async SQLAlchemy
+  - Structured logging with structlog
+
 ## TODO (следующие ветки)
 
-- [ ] Реализация регистрации пользователей
-- [ ] Реализация аутентификации (JWT)
+- [ ] Реализация аутентификации (JWT login, refresh, logout)
 - [ ] CRUD операции с профилем
 - [ ] Unit и integration тесты
 - [ ] Kafka события (UserCreated, UserUpdated)

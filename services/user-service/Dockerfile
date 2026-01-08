@@ -48,6 +48,7 @@ FROM python:3.12-slim AS runtime
 # Устанавливаем только runtime зависимости (без компиляторов)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
+    postgresql-client \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -62,13 +63,21 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 
 # Копируем исходный код приложения
-COPY services/user-service/src ./src
+COPY services/user-service/src ./services/user-service/src
+
+# Копируем Alembic для миграций
+COPY services/user-service/alembic ./services/user-service/alembic
+COPY services/user-service/alembic.ini ./services/user-service/
 
 # Копируем shared код (нужен для editable install)
 COPY shared /app/shared
 
+# Копируем entrypoint script
+COPY services/user-service/docker-entrypoint.sh /app/docker-entrypoint.sh
+
 # Меняем владельца файлов на appuser
-RUN chown -R appuser:appuser /app
+RUN chown -R appuser:appuser /app && \
+    chmod +x /app/docker-entrypoint.sh
 
 # Переключаемся на непривилегированного пользователя
 USER appuser
@@ -89,8 +98,7 @@ EXPOSE 8001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8001/health || exit 1
 
-# Запуск приложения через uvicorn
-# --host 0.0.0.0: слушаем на всех интерфейсах (нужно для Docker)
-# --port 8001: порт приложения
-# --workers 1: в development один worker, в production можно увеличить
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+# Entrypoint: автоматически запускает миграции и стартует приложение
+# Если нужно пропустить миграции, используйте:
+# docker run ... --entrypoint uvicorn user-service src.main:app ...
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

@@ -7,22 +7,39 @@ User Service - Main application entrypoint.
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from datetime import UTC
 import logging
 import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import structlog
 
 from src.config import settings
+from src.infrastructure.database import base
+from src.interface.api.exception_handlers import register_exception_handlers
+from src.interface.api.v1.routes import auth
 
-# Настройка логирования
-logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper()),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
+# Configure structlog (unified logging across all modules)
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.StackInfoRenderer(),
+        structlog.dev.set_exc_info,
+        structlog.processors.TimeStamper(fmt="iso", utc=True),
+        structlog.dev.ConsoleRenderer() if settings.debug else structlog.processors.JSONRenderer(),
+    ],
+    wrapper_class=structlog.make_filtering_bound_logger(
+        getattr(logging, settings.log_level.upper(), logging.INFO)
+    ),
+    context_class=dict,
+    logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
+    cache_logger_on_first_use=True,
 )
-logger = logging.getLogger(__name__)
+
+logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
@@ -45,7 +62,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"API available at http://{settings.api_host}:{settings.api_port}")
     logger.info(f"API docs at http://{settings.api_host}:{settings.api_port}/docs")
 
-    # TODO: Инициализация Database connection pool
+    # Инициализация Database connection pool
+    logger.info("Initializing database connection pool")
+    base.AsyncSessionLocal = base.create_async_session_maker(settings.database_url)
+    logger.info("Database connection pool initialized")
+
     # TODO: Инициализация Redis connection
     # TODO: Инициализация Kafka producer/consumer
 
@@ -56,7 +77,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     # === SHUTDOWN ===
     logger.info(f"Shutting down {settings.service_name}")
 
-    # TODO: Закрытие Database connection pool
+    # Закрытие Database connection pool
+    if base.AsyncSessionLocal is not None:
+        logger.info("Closing database connection pool")
+        base.AsyncSessionLocal = None
+
     # TODO: Закрытие Redis connection
     # TODO: Закрытие Kafka producer/consumer
 
@@ -100,69 +125,65 @@ def create_app() -> FastAPI:
 
     # TODO: Request ID middleware (для distributed tracing)
     # TODO: Logging middleware (логирование всех requests)
-    # TODO: Exception handler middleware
+
+    # === EXCEPTION HANDLERS ===
+    # Register domain exception handlers BEFORE routes
+    # This maps domain exceptions to HTTP responses
+    register_exception_handlers(app)
 
     # === ROUTES ===
 
+    # Register API v1 routes
+    app.include_router(auth.router, prefix=settings.api_prefix, tags=["auth"])
+
     # Health check endpoint (не требует аутентификации)
-    @app.get("/health", tags=["Health"], response_model=dict[str, str])
-    async def health_check() -> dict[str, str]:
+    # Format follows docs/API_CONVENTIONS.md
+    @app.get("/health", tags=["Health"])
+    async def health_check() -> dict[str, str | dict[str, str]]:
         """
-        Health check endpoint.
+        Health check endpoint following API_CONVENTIONS.md format.
 
         Используется для:
         - Kubernetes liveness/readiness probes
         - Load balancer health checks
         - Monitoring systems
 
-        В будущем здесь можно добавить проверки:
-        - Подключение к БД
-        - Подключение к Redis
-        - Подключение к Kafka
-
         Returns:
-            dict: Health status
+            dict: Health status with version, timestamp, and dependencies
+
+        Response format (API_CONVENTIONS.md):
+            {
+                "status": "healthy",
+                "version": "0.1.0",
+                "timestamp": "2026-01-08T...",
+                "dependencies": {
+                    "database": "healthy",
+                    "redis": "not_configured",
+                    "kafka": "not_configured"
+                }
+            }
         """
+        from datetime import datetime
+
+        # TODO: Add real health checks for dependencies
+        # For now, mark unconfigured dependencies as "not_configured"
         return {
-            "status": "ok",
-            "service": settings.service_name,
-            "environment": settings.environment,
+            "status": "healthy",
+            "version": "0.1.0",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "dependencies": {
+                "database": "healthy",  # TODO: real check
+                "redis": "not_configured",  # TODO: implement
+                "kafka": "not_configured",  # TODO: implement
+            },
         }
 
-    # Readiness probe (более строгая проверка чем health)
-    @app.get("/ready", tags=["Health"], response_model=dict[str, str | bool])
-    async def readiness_check() -> dict[str, str | bool]:
-        """
-        Readiness check endpoint.
-
-        Проверяет готовность сервиса к обработке запросов.
-        В отличие от /health, здесь проверяем зависимости:
-        - Database connectivity
-        - Redis availability
-        - External services
-
-        Returns:
-            dict: Readiness status with dependencies
-        """
-        # TODO: Проверить подключение к PostgreSQL
-        # TODO: Проверить подключение к Redis
-        # TODO: Проверить подключение к Kafka
-
-        return {
-            "status": "ready",
-            "service": settings.service_name,
-            "database": True,  # TODO: реальная проверка
-            "redis": True,  # TODO: реальная проверка
-        }
-
-    # TODO: Регистрация API routes
-
-    # === EXCEPTION HANDLERS ===
+    # === GLOBAL EXCEPTION HANDLER ===
 
     @app.exception_handler(Exception)
     async def global_exception_handler(_request, exc: Exception) -> JSONResponse:  # type: ignore[no-untyped-def]
         """
-        Глобальный обработчик исключений.
+        Глобальный обработчик исключений following API_CONVENTIONS.md.
 
         В продакшене не должны возвращаться детали ошибки пользователю.
         Вместо этого логируем ошибку и возвращаем generic message.
@@ -172,8 +193,11 @@ def create_app() -> FastAPI:
             exc: Exception instance
 
         Returns:
-            JSONResponse: Error response
+            JSONResponse: Error response in standard format
         """
+        from datetime import datetime
+        import uuid
+
         logger.error(f"Unhandled exception: {exc}", exc_info=True)
 
         # В development показываем детали ошибки
@@ -181,16 +205,31 @@ def create_app() -> FastAPI:
             return JSONResponse(
                 status_code=500,
                 content={
-                    "error": "Internal Server Error",
-                    "detail": str(exc),
-                    "type": type(exc).__name__,
+                    "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": "Internal Server Error",
+                        "details": {
+                            "exception_type": type(exc).__name__,
+                            "exception_message": str(exc),
+                        },
+                        "request_id": str(uuid.uuid4()),
+                        "timestamp": datetime.now(UTC).isoformat(),
+                    }
                 },
             )
 
         # В production возвращаем generic ошибку
         return JSONResponse(
             status_code=500,
-            content={"error": "Internal Server Error"},
+            content={
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Internal Server Error",
+                    "details": {},
+                    "request_id": str(uuid.uuid4()),
+                    "timestamp": datetime.now(UTC).isoformat(),
+                }
+            },
         )
 
     return app

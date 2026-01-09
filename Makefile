@@ -91,6 +91,17 @@ test-cov: ## Run tests with coverage report
 	pytest --cov --cov-report=html --cov-report=term
 	@echo "$(GREEN)Coverage report generated in htmlcov/index.html$(NC)"
 
+test-service: ## Run tests for a specific service (SERVICE=name)
+	@echo "$(BLUE)Running service tests...$(NC)"
+ifdef SERVICE
+	cd services/$(SERVICE) && pytest -c pyproject.toml
+else
+	@echo "$(RED)Error: Please specify SERVICE=name (e.g. SERVICE=user-service)$(NC)"
+endif
+
+test-user: ## Run tests for user service
+	@$(MAKE) test-service SERVICE=user-service
+
 lint: ## Run ruff linter
 	@echo "$(BLUE)Running linter...$(NC)"
 	ruff check .

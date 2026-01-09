@@ -5,8 +5,8 @@ REST API endpoints for user authentication.
 
 Endpoints:
 - POST /api/v1/auth/register - User registration
-- POST /api/v1/auth/login - User login (TODO)
-- POST /api/v1/auth/refresh - Refresh token (TODO)
+- POST /api/v1/auth/login - User login
+- POST /api/v1/auth/refresh - Refresh token
 """
 
 from typing import Annotated
@@ -14,10 +14,23 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 import structlog
 
+from src.application.dto.auth import LoginUserDTO, RefreshTokenDTO
 from src.application.dto.user import RegisterUserDTO
+from src.application.use_cases.login_user import LoginUserUseCase
+from src.application.use_cases.refresh_token import RefreshTokenUseCase
 from src.application.use_cases.register_user import RegisterUserUseCase
-from src.interface.api.v1.schemas.auth import RegisterRequest, UserResponse
-from src.interface.dependencies.database import get_register_user_use_case
+from src.interface.api.v1.schemas.auth import (
+    LoginRequest,
+    RefreshRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+)
+from src.interface.dependencies.auth import (
+    get_login_user_use_case,
+    get_refresh_token_use_case,
+    get_register_user_use_case,
+)
 
 # Structured logging
 logger = structlog.get_logger(__name__)
@@ -174,3 +187,63 @@ async def register_user(
     # Step 3: Convert application DTO → Pydantic response schema
     # This is the boundary between application layer and API layer
     return UserResponse.from_dto(result_dto)
+
+
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Login user",
+    description="""
+    Authenticate user with email and password.
+
+    **Returns:**
+    - 200 OK: Token pair issued
+    - 401 Unauthorized: Invalid credentials
+    - 422 Unprocessable Entity: Invalid email format
+    """,
+)
+async def login_user(
+    request: LoginRequest,
+    use_case: Annotated[LoginUserUseCase, Depends(get_login_user_use_case)],
+) -> TokenResponse:
+    """Authenticate user and return JWT token pair."""
+    logger.info("auth.login.started", email=request.email)
+
+    dto = LoginUserDTO(
+        email=request.email,
+        password=request.password,
+    )
+    result_dto = await use_case.execute(dto)
+
+    logger.info("auth.login.success", email=request.email)
+    return TokenResponse.from_dto(result_dto)
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Refresh access token",
+    description="""
+    Exchange a valid refresh token for a new token pair.
+
+    **Returns:**
+    - 200 OK: New token pair issued
+    - 401 Unauthorized: Invalid or expired refresh token
+    """,
+)
+async def refresh_token(
+    request: RefreshRequest,
+    use_case: Annotated[RefreshTokenUseCase, Depends(get_refresh_token_use_case)],
+) -> TokenResponse:
+    """Refresh JWT token pair."""
+    logger.info("auth.refresh.started")
+
+    dto = RefreshTokenDTO(
+        refresh_token=request.refresh_token,
+    )
+    result_dto = await use_case.execute(dto)
+
+    logger.info("auth.refresh.success")
+    return TokenResponse.from_dto(result_dto)

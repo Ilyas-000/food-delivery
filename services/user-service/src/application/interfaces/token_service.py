@@ -41,4 +41,7 @@ class ITokenService(ABC):
 
         Returns:
             dict: Decoded payload
+
+        Raises:
+            InvalidTokenError: If token is invalid or expired
         """

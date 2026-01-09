@@ -60,3 +60,15 @@ extend = "../../pyproject.toml"
 # uv workspace sources
 [tool.uv.sources]
 food-delivery-shared = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+addopts = [
+    "-v",
+    "-rA",
+    "--durations=10",
+    "--cov=src",
+    "--cov-report=term-missing:skip-covered",
+]

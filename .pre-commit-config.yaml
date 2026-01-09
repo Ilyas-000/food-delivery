@@ -35,7 +35,7 @@ repos:
           - types-redis
           - types-requests
         args: [--config-file=pyproject.toml]
-        exclude: ^(tests/|migrations/)
+        exclude: ^(tests/|migrations/|services/.*/tests/)
 
   # Conventional Commits validation
   - repo: https://github.com/compilerla/conventional-pre-commit

@@ -16,13 +16,9 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.interfaces.password_hasher import IPasswordHasher
 from src.application.interfaces.user_repository import IUserRepository
-from src.application.use_cases.register_user import RegisterUserUseCase
-from src.config import settings
 from src.infrastructure.database import base
 from src.infrastructure.database.repositories.user_repository import UserRepository
-from src.infrastructure.security.password_hasher import PasswordHasher
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
@@ -74,57 +70,3 @@ async def get_user_repository(
             return user
     """
     return UserRepository(session)
-
-
-async def get_password_hasher() -> IPasswordHasher:
-    """
-    Dependency that provides PasswordHasher.
-
-    Returns:
-        IPasswordHasher: Password hasher implementation
-
-    Note: This is stateless service, can be reused.
-    In production, might use singleton pattern.
-
-    Example:
-        @app.post("/auth/change-password")
-        async def change_password(
-            hasher: IPasswordHasher = Depends(get_password_hasher)
-        ):
-            hashed = await hasher.hash_password(new_password)
-            ...
-    """
-    # PasswordHasher is stateless, safe to create new instance
-    return PasswordHasher(rounds=settings.password_bcrypt_rounds)
-
-
-async def get_register_user_use_case(
-    repository: Annotated[IUserRepository, Depends(get_user_repository)],
-    password_hasher: Annotated[IPasswordHasher, Depends(get_password_hasher)],
-) -> RegisterUserUseCase:
-    """
-    Dependency that provides RegisterUserUseCase.
-
-    This is higher-level dependency that composes other dependencies.
-    Demonstrates Dependency Inversion Principle - use case depends on
-    abstractions (interfaces), not concrete implementations.
-
-    Args:
-        repository: User repository (injected)
-        password_hasher: Password hasher (injected)
-
-    Returns:
-        RegisterUserUseCase: Configured use case
-
-    Example:
-        @app.post("/auth/register")
-        async def register(
-            use_case: RegisterUserUseCase = Depends(get_register_user_use_case)
-        ):
-            result = await use_case.execute(dto)
-            return result
-    """
-    return RegisterUserUseCase(
-        user_repository=repository,
-        password_hasher=password_hasher,
-    )

@@ -8,6 +8,8 @@ Exception handlers provide clean boundary between layers.
 Mapping:
 - UserAlreadyExistsError → 409 Conflict (CONFLICT)
 - InvalidEmailError → 422 Unprocessable Entity (BUSINESS_RULE_VIOLATION)
+- InvalidCredentialsError → 401 Unauthorized (UNAUTHORIZED)
+- InvalidTokenError → 401 Unauthorized (UNAUTHORIZED)
 - UserNotFoundError → 404 Not Found (NOT_FOUND)
 - DomainError (generic) → 400 Bad Request (VALIDATION_ERROR)
 
@@ -36,8 +38,10 @@ from fastapi.responses import JSONResponse
 
 from src.domain.exceptions.base import (
     DomainError,
+    InvalidCredentialsError,
     InvalidEmailError,
     InvalidPasswordError,
+    InvalidTokenError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -190,6 +194,38 @@ async def invalid_password_handler(_request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def invalid_credentials_handler(_request: Request, exc: Exception) -> JSONResponse:
+    """
+    Handler for InvalidCredentialsError.
+
+    HTTP semantics:
+    401 Unauthorized - invalid credentials
+    """
+    error = cast(InvalidCredentialsError, exc)
+    return _create_error_response(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        error_code="UNAUTHORIZED",
+        message=error.message,
+        details=error.details,
+    )
+
+
+async def invalid_token_handler(_request: Request, exc: Exception) -> JSONResponse:
+    """
+    Handler for InvalidTokenError.
+
+    HTTP semantics:
+    401 Unauthorized - invalid or expired token
+    """
+    error = cast(InvalidTokenError, exc)
+    return _create_error_response(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        error_code="UNAUTHORIZED",
+        message=error.message,
+        details=error.details,
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """
     Register all domain exception handlers with FastAPI app.
@@ -208,6 +244,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(UserNotFoundError, user_not_found_handler)
     app.add_exception_handler(InvalidEmailError, invalid_email_handler)
     app.add_exception_handler(InvalidPasswordError, invalid_password_handler)
+    app.add_exception_handler(InvalidCredentialsError, invalid_credentials_handler)
+    app.add_exception_handler(InvalidTokenError, invalid_token_handler)
 
     # Generic fallback handler
     app.add_exception_handler(DomainError, domain_error_handler)

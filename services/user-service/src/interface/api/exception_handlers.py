@@ -34,7 +34,7 @@ import uuid
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
-from src.domain.exceptions import (
+from src.domain.exceptions.base import (
     DomainError,
     InvalidEmailError,
     InvalidPasswordError,

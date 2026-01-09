@@ -23,7 +23,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from src.application.dto import UserResponseDTO
+from src.application.dto.user import UserResponseDTO
 from src.domain.value_objects.user_role import UserRole
 
 

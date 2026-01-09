@@ -14,7 +14,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 import structlog
 
-from src.application.dto import RegisterUserDTO
+from src.application.dto.user import RegisterUserDTO
 from src.application.use_cases.register_user import RegisterUserUseCase
 from src.interface.api.v1.schemas.auth import RegisterRequest, UserResponse
 from src.interface.dependencies.database import get_register_user_use_case

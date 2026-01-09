@@ -141,8 +141,8 @@ USER_SERVICE_REDIS_PORT=6379
 ### Authentication
 
 - ✅ `POST /api/v1/auth/register` - регистрация (IMPLEMENTED)
-- `POST /api/v1/auth/login` - логин (TODO)
-- `POST /api/v1/auth/refresh` - обновление токена (TODO)
+- ✅ `POST /api/v1/auth/login` - логин
+- ✅ `POST /api/v1/auth/refresh` - обновление токена
 - `POST /api/v1/auth/logout` - выход (TODO)
 
 ### Users (TODO)
@@ -217,7 +217,8 @@ mypy src/
 
 ## TODO (следующие ветки)
 
-- [ ] Реализация аутентификации (JWT login, refresh, logout)
+- [x] Реализация аутентификации (JWT login, refresh)
+- [ ] Logout (refresh token revocation)
 - [ ] CRUD операции с профилем
 - [ ] Unit и integration тесты
 - [ ] Kafka события (UserCreated, UserUpdated)

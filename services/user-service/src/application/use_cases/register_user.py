@@ -25,11 +25,11 @@ A: Нарушает разделение concerns - бизнес-логика с
 
 import structlog
 
-from src.application.dto import RegisterUserDTO, UserResponseDTO
+from src.application.dto.user import RegisterUserDTO, UserResponseDTO
 from src.application.interfaces.password_hasher import IPasswordHasher
 from src.application.interfaces.user_repository import IUserRepository
 from src.domain.entities.user import User
-from src.domain.exceptions import (
+from src.domain.exceptions.base import (
     InvalidEmailError,
     InvalidPasswordError,
     UserAlreadyExistsError,

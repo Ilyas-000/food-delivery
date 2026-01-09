@@ -97,3 +97,28 @@ class InvalidPasswordError(DomainError):
         if reason:
             message += f": {reason}"
         super().__init__(message=message, details={"reason": reason})
+
+
+class InvalidCredentialsError(DomainError):
+    """
+    Authentication failed due to invalid credentials.
+
+    Used in LoginUserUseCase to avoid leaking whether email or password is wrong.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(message="Invalid credentials", details={})
+
+
+class InvalidTokenError(DomainError):
+    """
+    Token is invalid or expired.
+
+    Used in refresh flow and auth dependencies when JWT validation fails.
+    """
+
+    def __init__(self, reason: str | None = None) -> None:
+        message = "Invalid or expired token"
+        if reason:
+            message += f": {reason}"
+        super().__init__(message=message, details={"reason": reason} if reason else {})

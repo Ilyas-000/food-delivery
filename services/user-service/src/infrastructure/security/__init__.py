@@ -1,1 +1,1 @@
-"""Security implementations - password hashing, JWT, etc."""
+"""Security implementations - password hashing, JWT, token services."""

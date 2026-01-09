@@ -8,6 +8,6 @@ This package contains:
 
 Import explicitly, e.g.:
     from application.use_cases.register_user import RegisterUserUseCase
-    from application.dto import RegisterUserDTO, UserResponseDTO
+    from application.dto.user import RegisterUserDTO, UserResponseDTO
     from application.interfaces.user_repository import IUserRepository
 """

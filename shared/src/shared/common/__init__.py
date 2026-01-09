@@ -13,16 +13,3 @@ What's NOT in shared/common:
 
 Philosophy: Share infrastructure, not domain logic.
 """
-
-from shared.common.jwt import create_access_token, create_refresh_token, decode_token
-from shared.common.kafka import KafkaConsumer, KafkaProducer
-from shared.common.redis import RedisClient
-
-__all__ = [
-    "KafkaConsumer",
-    "KafkaProducer",
-    "RedisClient",
-    "create_access_token",
-    "create_refresh_token",
-    "decode_token",
-]

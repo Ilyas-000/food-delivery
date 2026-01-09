@@ -23,7 +23,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from src.application.dto import UserResponseDTO
+from src.application.dto.auth import AuthTokensDTO
+from src.application.dto.user import UserResponseDTO
 from src.domain.value_objects.user_role import UserRole
 
 
@@ -90,4 +91,38 @@ class UserResponse(BaseModel):
             phone=dto.phone,
             created_at=dto.created_at,
             updated_at=dto.updated_at,
+        )
+
+
+class LoginRequest(BaseModel):
+    """Request schema for user login."""
+
+    email: str
+    password: str
+
+
+class RefreshRequest(BaseModel):
+    """Request schema for refresh token."""
+
+    refresh_token: str
+
+
+class TokenResponse(BaseModel):
+    """Response schema for access + refresh tokens."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str
+    access_expires_in: int
+    refresh_expires_in: int
+
+    @classmethod
+    def from_dto(cls, dto: AuthTokensDTO) -> "TokenResponse":
+        """Convert AuthTokensDTO to Pydantic response schema."""
+        return cls(
+            access_token=dto.access_token,
+            refresh_token=dto.refresh_token,
+            token_type=dto.token_type,
+            access_expires_in=dto.access_expires_in,
+            refresh_expires_in=dto.refresh_expires_in,
         )

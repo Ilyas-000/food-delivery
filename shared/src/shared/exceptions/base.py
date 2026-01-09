@@ -1,8 +1,12 @@
-"""Shared exception types."""
+"""
+Shared exception types for infrastructure and HTTP boundaries.
+
+Philosophy:
+- Keep shared errors generic and technical (infra + HTTP clients).
+- Service-specific domain errors must live inside each service.
+"""
 
 from typing import Any
-
-# Base errors
 
 
 class AppError(Exception):
@@ -12,33 +16,6 @@ class AppError(Exception):
         super().__init__(message)
         self.message = message
         self.details = details or {}
-
-
-# Domain errors
-
-
-class DomainError(AppError):
-    """Base domain error."""
-
-
-class EntityNotFoundError(DomainError):
-    """Domain entity not found."""
-
-
-class BusinessRuleViolationError(DomainError):
-    """Business rule violated."""
-
-
-class InvalidOperationError(DomainError):
-    """Invalid operation for state."""
-
-
-class ValidationError(DomainError):
-    """Domain validation failed."""
-
-
-class ConflictError(DomainError):
-    """Resource conflict."""
 
 
 # Infrastructure errors
@@ -66,29 +43,6 @@ class ExternalServiceError(InfrastructureError):
 
 class ServiceUnavailableError(InfrastructureError):
     """Dependency unavailable."""
-
-
-# Auth errors
-
-
-class AuthenticationError(AppError):
-    """Auth error base."""
-
-
-class InvalidCredentialsError(AuthenticationError):
-    """Invalid credentials."""
-
-
-class TokenExpiredError(AuthenticationError):
-    """JWT expired."""
-
-
-class InvalidTokenError(AuthenticationError):
-    """JWT invalid."""
-
-
-class AuthorizationError(AppError):
-    """Forbidden."""
 
 
 # HTTP errors
@@ -135,23 +89,14 @@ class NotFoundError(HTTPError):
         super().__init__(message, status_code=404, details=details)
 
 
-# Legacy aliases
+# Legacy aliases (keep only infra + HTTP)
 AppException = AppError
-DomainException = DomainError
-EntityNotFoundException = EntityNotFoundError
-BusinessRuleViolationException = BusinessRuleViolationError
-InvalidOperationException = InvalidOperationError
 InfrastructureException = InfrastructureError
 DatabaseException = DatabaseError
 MessageBrokerException = MessageBrokerError
 CacheException = CacheError
 ExternalServiceException = ExternalServiceError
 ServiceUnavailableException = ServiceUnavailableError
-AuthenticationException = AuthenticationError
-InvalidCredentialsException = InvalidCredentialsError
-TokenExpiredException = TokenExpiredError
-InvalidTokenException = InvalidTokenError
-AuthorizationException = AuthorizationError
 HTTPException = HTTPError
 BadRequestException = BadRequestError
 UnauthorizedException = UnauthorizedError

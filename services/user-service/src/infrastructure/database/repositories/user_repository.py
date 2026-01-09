@@ -36,7 +36,7 @@ import structlog
 
 from src.application.interfaces.user_repository import IUserRepository
 from src.domain.entities.user import User
-from src.domain.exceptions import UserAlreadyExistsError
+from src.domain.exceptions.base import UserAlreadyExistsError
 from src.domain.value_objects.email import Email
 from src.infrastructure.database.models.user_model import UserModel
 

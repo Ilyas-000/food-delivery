@@ -36,7 +36,9 @@ This package is automatically installed in the uv workspace. Services can use it
 
 ```python
 from shared.events.order_events import OrderCreatedEvent
-from shared.common import KafkaProducer, RedisClient, create_access_token
+from shared.common.kafka import KafkaProducer
+from shared.common.redis import RedisClient
+from shared.common.jwt import create_access_token
 ```
 
 ## Usage
@@ -57,7 +59,7 @@ from shared.events.payment_events import PaymentReservedEvent
 ### Kafka
 
 ```python
-from shared.common import KafkaProducer, KafkaConsumer
+from shared.common.kafka import KafkaConsumer, KafkaProducer
 
 # Producer
 producer = KafkaProducer(bootstrap_servers="localhost:9092")
@@ -77,7 +79,7 @@ async for message in consumer:
 ### Redis
 
 ```python
-from shared.common import RedisClient
+from shared.common.redis import RedisClient
 
 redis = RedisClient(host="localhost", port=6379)
 await redis.set("key", "value", expire=3600)
@@ -87,7 +89,7 @@ value = await redis.get("key")
 ### JWT Utilities
 
 ```python
-from shared.common import create_access_token, decode_token
+from shared.common.jwt import create_access_token, decode_token
 
 # Create token
 token = create_access_token(user_id="123", role="customer")

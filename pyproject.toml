@@ -125,6 +125,8 @@ warn_no_return = true
 follow_imports = "normal"
 ignore_missing_imports = false
 show_error_codes = true
+mypy_path = ["shared/src", "services/user-service/src"]
+exclude = "(^services/.*/tests/|^tests/)"
 
 [[tool.mypy.overrides]]
 module = [
@@ -142,6 +144,20 @@ module = [
     "structlog",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pytest",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+    "*.tests.*",
+]
+ignore_missing_imports = true
+disallow_untyped_decorators = false
 
 # Relaxed rules for skeleton/config files (will be fixed in production branches)
 [[tool.mypy.overrides]]
@@ -211,3 +227,9 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "htmlcov"
+
+[tool.bandit]
+exclude_dirs = [
+    "services/*/tests",
+    "tests",
+]

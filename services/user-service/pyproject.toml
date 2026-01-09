@@ -66,9 +66,8 @@ testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 addopts = [
-    "-v",
-    "-rA",
-    "--durations=10",
+    "-q",
+    "--disable-warnings",
     "--cov=src",
-    "--cov-report=term-missing:skip-covered",
+    "--cov-report=",
 ]

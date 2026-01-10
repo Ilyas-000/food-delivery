@@ -7,6 +7,7 @@ Endpoints:
 - POST /api/v1/auth/register - User registration
 - POST /api/v1/auth/login - User login
 - POST /api/v1/auth/refresh - Refresh token
+- POST /api/v1/auth/logout - Logout (revoke refresh token)
 """
 
 from typing import Annotated
@@ -14,13 +15,19 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 import structlog
 
-from src.application.dto.auth import LoginUserDTO, RefreshTokenDTO
-from src.application.dto.user import RegisterUserDTO
+from src.application.dto.auth import (
+    LoginUserDTO,
+    LogoutUserDTO,
+    RefreshTokenDTO,
+    RegisterUserDTO,
+)
 from src.application.use_cases.login_user import LoginUserUseCase
+from src.application.use_cases.logout_user import LogoutUserUseCase
 from src.application.use_cases.refresh_token import RefreshTokenUseCase
 from src.application.use_cases.register_user import RegisterUserUseCase
 from src.interface.api.v1.schemas.auth import (
     LoginRequest,
+    LogoutRequest,
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
@@ -28,6 +35,7 @@ from src.interface.api.v1.schemas.auth import (
 )
 from src.interface.dependencies.auth import (
     get_login_user_use_case,
+    get_logout_user_use_case,
     get_refresh_token_use_case,
     get_register_user_use_case,
 )
@@ -247,3 +255,30 @@ async def refresh_token(
 
     logger.info("auth.refresh.success")
     return TokenResponse.from_dto(result_dto)
+
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Logout user",
+    description="""
+    Revoke refresh token (logout).
+
+    **Returns:**
+    - 204 No Content: Logout successful
+    - 401 Unauthorized: Invalid or expired refresh token
+    """,
+)
+async def logout_user(
+    request: LogoutRequest,
+    use_case: Annotated[LogoutUserUseCase, Depends(get_logout_user_use_case)],
+) -> None:
+    """Revoke refresh token in Redis whitelist."""
+    logger.info("auth.logout.started")
+
+    dto = LogoutUserDTO(
+        refresh_token=request.refresh_token,
+    )
+    await use_case.execute(dto)
+
+    logger.info("auth.logout.success")

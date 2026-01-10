@@ -25,7 +25,8 @@ A: Нарушает разделение concerns - бизнес-логика с
 
 import structlog
 
-from src.application.dto.user import RegisterUserDTO, UserResponseDTO
+from src.application.dto.auth import RegisterUserDTO
+from src.application.dto.user import UserResponseDTO
 from src.application.interfaces.password_hasher import IPasswordHasher
 from src.application.interfaces.user_repository import IUserRepository
 from src.domain.entities.user import User

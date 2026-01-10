@@ -107,6 +107,12 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class LogoutRequest(BaseModel):
+    """Request schema for logout (refresh token revocation)."""
+
+    refresh_token: str
+
+
 class TokenResponse(BaseModel):
     """Response schema for access + refresh tokens."""
 

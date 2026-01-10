@@ -13,16 +13,6 @@ from src.domain.entities.user import User
 from src.domain.value_objects.user_role import UserRole
 
 
-class RegisterUserDTO(BaseModel):
-    """DTO for user registration input."""
-
-    email: str
-    password: str
-    full_name: str
-    role: UserRole = UserRole.CUSTOMER
-    phone: str | None = None
-
-
 class UserResponseDTO(BaseModel):
     """
     DTO for user data output.
@@ -51,3 +41,17 @@ class UserResponseDTO(BaseModel):
             created_at=user.created_at,
             updated_at=user.updated_at,
         )
+
+
+class GetUserProfileDTO(BaseModel):
+    """DTO for fetching user profile by id."""
+
+    user_id: UUID
+
+
+class UpdateUserProfileDTO(BaseModel):
+    """DTO for updating user profile."""
+
+    user_id: UUID
+    full_name: str | None = None
+    phone: str | None = None

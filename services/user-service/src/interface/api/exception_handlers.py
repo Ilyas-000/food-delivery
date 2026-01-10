@@ -8,9 +8,11 @@ Exception handlers provide clean boundary between layers.
 Mapping:
 - UserAlreadyExistsError → 409 Conflict (CONFLICT)
 - InvalidEmailError → 422 Unprocessable Entity (BUSINESS_RULE_VIOLATION)
+- InvalidProfileError → 422 Unprocessable Entity (BUSINESS_RULE_VIOLATION)
 - InvalidCredentialsError → 401 Unauthorized (UNAUTHORIZED)
 - InvalidTokenError → 401 Unauthorized (UNAUTHORIZED)
 - UserNotFoundError → 404 Not Found (NOT_FOUND)
+- PermissionDeniedError → 403 Forbidden (FORBIDDEN)
 - DomainError (generic) → 400 Bad Request (VALIDATION_ERROR)
 
 Error format follows docs/API_CONVENTIONS.md:
@@ -41,7 +43,9 @@ from src.domain.exceptions.base import (
     InvalidCredentialsError,
     InvalidEmailError,
     InvalidPasswordError,
+    InvalidProfileError,
     InvalidTokenError,
+    PermissionDeniedError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -194,6 +198,22 @@ async def invalid_password_handler(_request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def invalid_profile_handler(_request: Request, exc: Exception) -> JSONResponse:
+    """
+    Handler for InvalidProfileError.
+
+    HTTP semantics:
+    422 Unprocessable Entity - validation error (business rule violation)
+    """
+    error = cast(InvalidProfileError, exc)
+    return _create_error_response(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        error_code="BUSINESS_RULE_VIOLATION",
+        message=error.message,
+        details=error.details,
+    )
+
+
 async def invalid_credentials_handler(_request: Request, exc: Exception) -> JSONResponse:
     """
     Handler for InvalidCredentialsError.
@@ -226,6 +246,22 @@ async def invalid_token_handler(_request: Request, exc: Exception) -> JSONRespon
     )
 
 
+async def permission_denied_handler(_request: Request, exc: Exception) -> JSONResponse:
+    """
+    Handler for PermissionDeniedError.
+
+    HTTP semantics:
+    403 Forbidden - insufficient permissions
+    """
+    error = cast(PermissionDeniedError, exc)
+    return _create_error_response(
+        status_code=status.HTTP_403_FORBIDDEN,
+        error_code="FORBIDDEN",
+        message=error.message,
+        details=error.details,
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """
     Register all domain exception handlers with FastAPI app.
@@ -244,8 +280,10 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(UserNotFoundError, user_not_found_handler)
     app.add_exception_handler(InvalidEmailError, invalid_email_handler)
     app.add_exception_handler(InvalidPasswordError, invalid_password_handler)
+    app.add_exception_handler(InvalidProfileError, invalid_profile_handler)
     app.add_exception_handler(InvalidCredentialsError, invalid_credentials_handler)
     app.add_exception_handler(InvalidTokenError, invalid_token_handler)
+    app.add_exception_handler(PermissionDeniedError, permission_denied_handler)
 
     # Generic fallback handler
     app.add_exception_handler(DomainError, domain_error_handler)

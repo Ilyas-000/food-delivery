@@ -5,6 +5,7 @@ import pytest
 
 from src.application.dto.auth import AuthTokensDTO, LoginUserDTO
 from src.application.interfaces.password_hasher import IPasswordHasher
+from src.application.interfaces.refresh_token_repository import IRefreshTokenRepository
 from src.application.interfaces.token_service import ITokenService
 from src.application.interfaces.user_repository import IUserRepository
 from src.application.use_cases.login_user import LoginUserUseCase
@@ -66,11 +67,14 @@ class FakeTokenService(ITokenService):
         subject: str,
         role: UserRole,
         extra_claims: dict[str, Any] | None = None,
+        refresh_claims: dict[str, Any] | None = None,
     ) -> AuthTokensDTO:
         _ = subject
         _ = role
         if extra_claims:
             _ = extra_claims
+        if refresh_claims:
+            _ = refresh_claims
         return self._tokens
 
     def decode_token(self, token: str) -> dict[str, Any]:  # pragma: no cover - not used
@@ -78,8 +82,29 @@ class FakeTokenService(ITokenService):
         raise NotImplementedError
 
 
+class FakeRefreshTokenRepository(IRefreshTokenRepository):
+    def __init__(self) -> None:
+        self.stored: list[tuple[str, UUID, int]] = []
+
+    async def store(self, jti: str, user_id: UUID, expires_in: int) -> None:
+        self.stored.append((jti, user_id, expires_in))
+
+    async def exists(self, jti: str) -> bool:  # pragma: no cover - not used
+        _ = jti
+        raise NotImplementedError
+
+    async def delete(self, jti: str) -> None:  # pragma: no cover - not used
+        _ = jti
+        raise NotImplementedError
+
+
 @pytest.mark.asyncio()
-async def test_login_user_success() -> None:
+async def test_login_user_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    expected_jti = "00000000-0000-0000-0000-000000000001"
+    monkeypatch.setattr(
+        "src.application.use_cases.login_user.uuid4",
+        lambda: UUID(expected_jti),
+    )
     user = User.create(
         email=Email("user@example.com"),
         password_hash=BCRYPT_HASH,
@@ -89,6 +114,7 @@ async def test_login_user_success() -> None:
 
     repo = FakeUserRepository([user])
     hasher = FakePasswordHasher(expected_password="Secret123")
+    refresh_repo = FakeRefreshTokenRepository()
     token_service = FakeTokenService(
         AuthTokensDTO(
             access_token="access",
@@ -98,12 +124,13 @@ async def test_login_user_success() -> None:
             refresh_expires_in=604800,
         )
     )
-    use_case = LoginUserUseCase(repo, hasher, token_service)
+    use_case = LoginUserUseCase(repo, hasher, token_service, refresh_repo)
 
     result = await use_case.execute(LoginUserDTO(email="user@example.com", password="Secret123"))
 
     assert result.access_token == "access"
     assert result.refresh_token == "refresh"
+    assert refresh_repo.stored == [(expected_jti, user.id, 604800)]
 
 
 @pytest.mark.asyncio()
@@ -117,6 +144,7 @@ async def test_login_user_invalid_password() -> None:
 
     repo = FakeUserRepository([user])
     hasher = FakePasswordHasher(expected_password="CorrectPassword")
+    refresh_repo = FakeRefreshTokenRepository()
     token_service = FakeTokenService(
         AuthTokensDTO(
             access_token="access",
@@ -126,7 +154,7 @@ async def test_login_user_invalid_password() -> None:
             refresh_expires_in=604800,
         )
     )
-    use_case = LoginUserUseCase(repo, hasher, token_service)
+    use_case = LoginUserUseCase(repo, hasher, token_service, refresh_repo)
 
     with pytest.raises(InvalidCredentialsError):
         await use_case.execute(LoginUserDTO(email="user@example.com", password="WrongPassword"))
@@ -136,6 +164,7 @@ async def test_login_user_invalid_password() -> None:
 async def test_login_user_invalid_email() -> None:
     repo = FakeUserRepository([])
     hasher = FakePasswordHasher(expected_password="Secret123")
+    refresh_repo = FakeRefreshTokenRepository()
     token_service = FakeTokenService(
         AuthTokensDTO(
             access_token="access",
@@ -145,7 +174,7 @@ async def test_login_user_invalid_email() -> None:
             refresh_expires_in=604800,
         )
     )
-    use_case = LoginUserUseCase(repo, hasher, token_service)
+    use_case = LoginUserUseCase(repo, hasher, token_service, refresh_repo)
 
     with pytest.raises(InvalidEmailError):
         await use_case.execute(LoginUserDTO(email="not-an-email", password="Secret123"))

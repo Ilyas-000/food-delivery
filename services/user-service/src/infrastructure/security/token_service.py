@@ -35,6 +35,7 @@ class TokenService(ITokenService):
         subject: str,
         role: UserRole,
         extra_claims: dict[str, Any] | None = None,
+        refresh_claims: dict[str, Any] | None = None,
     ) -> AuthTokensDTO:
         access_claims: dict[str, Any] = {"role": role.value}
         if extra_claims:
@@ -52,6 +53,7 @@ class TokenService(ITokenService):
             secret_key=self._secret_key,
             algorithm=self._algorithm,
             expires_days=self._refresh_expires_days,
+            extra_claims=refresh_claims,
         )
 
         return AuthTokensDTO(

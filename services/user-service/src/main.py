@@ -17,9 +17,10 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from src.config import settings
+from src.infrastructure.cache.redis_client import close_redis_client, create_redis_client
 from src.infrastructure.database import base
 from src.interface.api.exception_handlers import register_exception_handlers
-from src.interface.api.v1.routes import auth
+from src.interface.api.v1.routes import auth, users
 
 # Configure structlog (unified logging across all modules)
 structlog.configure(
@@ -43,7 +44,7 @@ logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Lifecycle manager для FastAPI приложения.
 
@@ -67,7 +68,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     base.AsyncSessionLocal = base.create_async_session_maker(settings.database_url)
     logger.info("Database connection pool initialized")
 
-    # TODO: Инициализация Redis connection
+    logger.info("Initializing Redis client")
+    app.state.redis = create_redis_client()
     # TODO: Инициализация Kafka producer/consumer
 
     logger.info(f"{settings.service_name} started successfully")
@@ -82,7 +84,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Closing database connection pool")
         base.AsyncSessionLocal = None
 
-    # TODO: Закрытие Redis connection
+    logger.info("Closing Redis client")
+    if hasattr(app.state, "redis"):
+        await close_redis_client(app.state.redis)
+        app.state.redis = None
     # TODO: Закрытие Kafka producer/consumer
 
     logger.info(f"{settings.service_name} shutdown complete")
@@ -135,6 +140,7 @@ def create_app() -> FastAPI:
 
     # Register API v1 routes
     app.include_router(auth.router, prefix=settings.api_prefix, tags=["auth"])
+    app.include_router(users.router, prefix=settings.api_prefix, tags=["users"])
 
     # Health check endpoint (не требует аутентификации)
     # Format follows docs/API_CONVENTIONS.md

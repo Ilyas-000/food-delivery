@@ -99,6 +99,18 @@ class InvalidPasswordError(DomainError):
         super().__init__(message=message, details={"reason": reason})
 
 
+class InvalidProfileError(DomainError):
+    """
+    User profile data does not meet business rules.
+    """
+
+    def __init__(self, reason: str | None = None) -> None:
+        message = "Invalid profile data"
+        if reason:
+            message += f": {reason}"
+        super().__init__(message=message, details={"reason": reason})
+
+
 class InvalidCredentialsError(DomainError):
     """
     Authentication failed due to invalid credentials.
@@ -119,6 +131,18 @@ class InvalidTokenError(DomainError):
 
     def __init__(self, reason: str | None = None) -> None:
         message = "Invalid or expired token"
+        if reason:
+            message += f": {reason}"
+        super().__init__(message=message, details={"reason": reason} if reason else {})
+
+
+class PermissionDeniedError(DomainError):
+    """
+    User does not have required permissions.
+    """
+
+    def __init__(self, reason: str | None = None) -> None:
+        message = "Insufficient permissions"
         if reason:
             message += f": {reason}"
         super().__init__(message=message, details={"reason": reason} if reason else {})

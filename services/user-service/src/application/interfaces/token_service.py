@@ -21,6 +21,7 @@ class ITokenService(ABC):
         subject: str,
         role: UserRole,
         extra_claims: dict[str, Any] | None = None,
+        refresh_claims: dict[str, Any] | None = None,
     ) -> AuthTokensDTO:
         """
         Create access + refresh token pair.
@@ -29,6 +30,7 @@ class ITokenService(ABC):
             subject: User ID (stored in "sub" claim)
             role: User role (used in access token claims)
             extra_claims: Optional extra claims (e.g., email)
+            refresh_claims: Optional refresh token claims (e.g., jti)
         """
 
     @abstractmethod

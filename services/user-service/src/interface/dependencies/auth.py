@@ -11,9 +11,11 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.application.interfaces.password_hasher import IPasswordHasher
+from src.application.interfaces.refresh_token_repository import IRefreshTokenRepository
 from src.application.interfaces.token_service import ITokenService
 from src.application.interfaces.user_repository import IUserRepository
 from src.application.use_cases.login_user import LoginUserUseCase
+from src.application.use_cases.logout_user import LogoutUserUseCase
 from src.application.use_cases.refresh_token import RefreshTokenUseCase
 from src.application.use_cases.register_user import RegisterUserUseCase
 from src.config import settings
@@ -22,6 +24,7 @@ from src.domain.exceptions.base import InvalidTokenError
 from src.infrastructure.security.password_hasher import PasswordHasher
 from src.infrastructure.security.token_service import TokenService
 from src.interface.dependencies.database import get_user_repository
+from src.interface.dependencies.redis import get_refresh_token_repository
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -56,23 +59,44 @@ async def get_login_user_use_case(
     repository: Annotated[IUserRepository, Depends(get_user_repository)],
     password_hasher: Annotated[IPasswordHasher, Depends(get_password_hasher)],
     token_service: Annotated[ITokenService, Depends(get_token_service)],
+    refresh_token_repository: Annotated[
+        IRefreshTokenRepository, Depends(get_refresh_token_repository)
+    ],
 ) -> LoginUserUseCase:
     """Provide LoginUserUseCase."""
     return LoginUserUseCase(
         user_repository=repository,
         password_hasher=password_hasher,
         token_service=token_service,
+        refresh_token_repository=refresh_token_repository,
     )
 
 
 async def get_refresh_token_use_case(
     repository: Annotated[IUserRepository, Depends(get_user_repository)],
     token_service: Annotated[ITokenService, Depends(get_token_service)],
+    refresh_token_repository: Annotated[
+        IRefreshTokenRepository, Depends(get_refresh_token_repository)
+    ],
 ) -> RefreshTokenUseCase:
     """Provide RefreshTokenUseCase."""
     return RefreshTokenUseCase(
         user_repository=repository,
         token_service=token_service,
+        refresh_token_repository=refresh_token_repository,
+    )
+
+
+async def get_logout_user_use_case(
+    token_service: Annotated[ITokenService, Depends(get_token_service)],
+    refresh_token_repository: Annotated[
+        IRefreshTokenRepository, Depends(get_refresh_token_repository)
+    ],
+) -> LogoutUserUseCase:
+    """Provide LogoutUserUseCase."""
+    return LogoutUserUseCase(
+        token_service=token_service,
+        refresh_token_repository=refresh_token_repository,
     )
 
 

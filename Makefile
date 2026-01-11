@@ -1,4 +1,4 @@
-.PHONY: help install dev-install up down restart logs health clean test lint format type-check pre-commit migrate seed
+.PHONY: help install dev-install up down restart logs health clean clean-images test lint format type-check pre-commit migrate seed
 
 # Default target
 .DEFAULT_GOAL := help
@@ -68,6 +68,18 @@ clean: ## Remove all containers, volumes, and build artifacts
 	rm -rf htmlcov coverage.xml .coverage 2>/dev/null || true
 	@echo "$(GREEN)Cleanup complete!$(NC)"
 
+clean-images: ## Remove all containers, volumes, images, and build artifacts
+	@echo "$(RED)Cleaning up (including images)...$(NC)"
+	docker-compose --env-file .env -f infrastructure/docker-compose.yml down -v --rmi local
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	rm -rf htmlcov coverage.xml .coverage 2>/dev/null || true
+	@echo "$(GREEN)Cleanup complete!$(NC)"
+
 ## Testing & Quality
 
 test: ## Run all tests
@@ -102,6 +114,9 @@ endif
 test-user: ## Run tests for user service
 	@$(MAKE) test-service SERVICE=user-service
 
+test-gateway: ## Run tests for API Gateway
+	@$(MAKE) test-service SERVICE=api-gateway
+
 lint: ## Run ruff linter
 	@echo "$(BLUE)Running linter...$(NC)"
 	ruff check .
@@ -114,7 +129,9 @@ format: ## Format code with ruff
 
 type-check: ## Run mypy type checker
 	@echo "$(BLUE)Running type checker...$(NC)"
-	mypy services/ shared/
+	MYPYPATH=shared/src:services/api-gateway mypy services/api-gateway/src
+	MYPYPATH=shared/src:services/user-service mypy services/user-service/src
+	MYPYPATH=shared/src mypy shared/src
 
 pre-commit: ## Run all pre-commit hooks
 	@echo "$(BLUE)Running pre-commit hooks...$(NC)"

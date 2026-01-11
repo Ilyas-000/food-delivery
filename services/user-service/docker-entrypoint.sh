@@ -20,9 +20,12 @@ alembic upgrade head
 echo "✓ Migrations completed"
 
 # Start the application
+log_level="${USER_SERVICE_LOG_LEVEL:-info}"
+log_level="${log_level,,}"
+
 echo "Starting User Service on ${USER_SERVICE_API_HOST:-0.0.0.0}:${USER_SERVICE_API_PORT:-8001}"
 cd /app/services/user-service
 exec uvicorn src.main:app \
   --host "${USER_SERVICE_API_HOST:-0.0.0.0}" \
   --port "${USER_SERVICE_API_PORT:-8001}" \
-  --log-level "${USER_SERVICE_LOG_LEVEL:-info}"
+  --log-level "${log_level}"

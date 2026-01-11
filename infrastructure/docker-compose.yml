@@ -19,7 +19,8 @@ services:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
@@ -121,12 +122,9 @@ services:
     container_name: food-delivery-user-service
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
+      - postgres
+      - redis
+      - kafka
     ports:
       - "8001:8001"
     environment:
@@ -174,6 +172,77 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  api-gateway:
+    build:
+      context: ..
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: food-delivery-api-gateway
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - user-service
+    ports:
+      - "8000:8000"
+    environment:
+      # Server
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: 8000
+      GATEWAY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      GATEWAY_DEBUG: ${DEBUG:-true}
+
+      # CORS
+      GATEWAY_CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8000"]'
+
+      # JWT (must match User Service)
+      GATEWAY_JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-super-secret-key-change-in-production}
+      GATEWAY_JWT_ALGORITHM: HS256
+
+      # Redis (for rate limiting)
+      GATEWAY_REDIS_HOST: redis
+      GATEWAY_REDIS_PORT: 6379
+      GATEWAY_REDIS_DB: 1
+
+      # Service URLs
+      GATEWAY_USER_SERVICE_URL: http://user-service:8001
+
+      # Circuit Breaker
+      GATEWAY_CIRCUIT_BREAKER_FAILURE_THRESHOLD: 5
+      GATEWAY_CIRCUIT_BREAKER_RECOVERY_TIMEOUT: 30.0
+
+      # Rate Limiting
+      GATEWAY_RATE_LIMIT_ENABLED: true
+      GATEWAY_LOGIN_PER_IP_MINUTE: 10
+      GATEWAY_LOGIN_PER_IP_HOUR: 100
+      GATEWAY_LOGIN_PER_ACCOUNT_MINUTE: 5
+      GATEWAY_LOGIN_PER_ACCOUNT_HOUR: 20
+      GATEWAY_LOGIN_PER_IP_ACCOUNT_MINUTE: 3
+      GATEWAY_LOGIN_MAX_FAILS_COUNT: 5
+      GATEWAY_LOGIN_MAX_FAILS_WINDOW: 600
+      GATEWAY_LOGIN_COOLDOWN_DURATION: 900
+      GATEWAY_REFRESH_PER_JTI_MINUTE: 10
+      GATEWAY_REFRESH_PER_JTI_HOUR: 60
+      GATEWAY_REFRESH_PER_USER_MINUTE: 30
+      GATEWAY_REFRESH_PER_USER_HOUR: 300
+      GATEWAY_REFRESH_PER_IP_MINUTE: 60
+      GATEWAY_REFRESH_PER_IP_HOUR: 1000
+      GATEWAY_REFRESH_INVALID_PER_IP_MINUTE: 5
+      GATEWAY_REFRESH_INVALID_PER_IP_HOUR: 20
+      GATEWAY_AUTH_GLOBAL_PER_IP_MINUTE: 60
+      GATEWAY_AUTH_GLOBAL_BURST: 20
+      GATEWAY_AUTH_GLOBAL_PER_IP_HOUR: 1000
+
+      # Logging
+      GATEWAY_LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      GATEWAY_LOG_JSON: true
+    volumes:
+      - ../services/api-gateway/src:/app/src:ro  # Mount для hot-reload в development
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:8000/health', timeout=5.0)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 volumes:
   postgres_data:

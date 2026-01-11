@@ -43,17 +43,40 @@ class RedisClient:
     async def get(self, key: str) -> Any:
         return await self._client.get(key)
 
+    async def incr(self, key: str) -> int:
+        result = await self._client.incr(key)
+        return int(result)
+
     async def set(self, key: str, value: Any, expire: int | None = None) -> bool:
         result = await self._client.set(key, value, ex=expire)
+        return bool(result)
+
+    async def setex(self, key: str, time: int, value: Any) -> bool:
+        result = await self._client.setex(key, time, value)
         return bool(result)
 
     async def delete(self, *keys: str) -> int:
         result = await self._client.delete(*keys)
         return int(result)
 
+    async def expire(self, key: str, time: int) -> bool:
+        result = await self._client.expire(key, time)
+        return bool(result)
+
+    async def ttl(self, key: str) -> int:
+        result = await self._client.ttl(key)
+        return int(result)
+
     async def publish(self, channel: str, message: str) -> int:
         result = await self._client.publish(channel, message)
         return int(result)
+
+    async def ping(self) -> bool:
+        result = await self._client.ping()
+        return bool(result)
+
+    def pipeline(self) -> Any:
+        return self._client.pipeline()
 
     def pubsub(self) -> redis.client.PubSub:
         return self._client.pubsub()

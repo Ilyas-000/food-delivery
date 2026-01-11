@@ -26,6 +26,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
+# Копируем root workspace файлы (для uv workspace)
+COPY pyproject.toml ./pyproject.toml
+COPY uv.lock ./uv.lock
+
 # Копируем только файлы с зависимостями (для кэширования слоя)
 # Если зависимости не изменились, Docker переиспользует закэшированный слой
 COPY services/user-service/pyproject.toml ./services/user-service/

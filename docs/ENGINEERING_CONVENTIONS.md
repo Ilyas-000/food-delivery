@@ -34,6 +34,7 @@ When code changes, keep this file in sync.
 - Service-specific DB overrides: `SERVICE_DB_NAME/USER/PASSWORD`.
 - Avoid `*_DATABASE_URL` and hardcoded host/port in code.
 - All runtime config should come from settings.
+- Prefer a single root `.env` for local dev; avoid per-service `.env` files.
 
 ## Logging & Tracing
 
@@ -51,3 +52,12 @@ When code changes, keep this file in sync.
 
 - Provide `/health` for liveness.
 - `/ready` is optional; include only if readiness checks differ from liveness.
+
+## Testing
+
+- Service tests should enable the shared pytest summary plugin:
+  `pytest_plugins = ["shared.testing.pytest_summary"]` in `conftest.py`.
+
+## Quick Fixes
+
+- If a change is a temporary workaround, call it out explicitly and record it in `docs/TECH_DEBT.md`.

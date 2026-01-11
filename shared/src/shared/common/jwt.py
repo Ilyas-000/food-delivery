@@ -138,3 +138,22 @@ def decode_token(
 
     payload = jwt.decode(token, secret_key, algorithms=algorithms)
     return dict(payload)
+
+
+def decode_token_unverified(token: str) -> dict[str, Any]:
+    """
+    Decode a JWT token without verifying signature or expiration.
+
+    Use only for non-security decisions (e.g., rate limiting).
+
+    Args:
+        token: JWT token string
+
+    Returns:
+        dict: Decoded payload (unverified)
+    """
+    payload = jwt.decode(
+        token,
+        options={"verify_signature": False, "verify_exp": False},
+    )
+    return dict(payload)

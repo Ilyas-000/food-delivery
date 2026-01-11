@@ -125,7 +125,7 @@ warn_no_return = true
 follow_imports = "normal"
 ignore_missing_imports = false
 show_error_codes = true
-mypy_path = ["shared/src", "services/user-service/src"]
+mypy_path = ["shared/src"]
 exclude = "(^services/.*/tests/|^tests/)"
 
 [[tool.mypy.overrides]]

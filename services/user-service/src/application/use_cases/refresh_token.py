@@ -70,6 +70,7 @@ class RefreshTokenUseCase:
         tokens = self._token_service.create_token_pair(
             subject=str(user.id),
             role=user.role,
+            extra_claims={"email": str(user.email)},
             refresh_claims={"jti": new_jti},
         )
 

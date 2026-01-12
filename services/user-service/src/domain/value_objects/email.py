@@ -61,7 +61,7 @@ class Email:
                 check_deliverability=False,
             )
             # Use normalized form (lowercase, ASCII if possible)
-            normalized = validated.normalized
+            normalized = validated.normalized.lower()
 
         except EmailNotValidError as e:
             # email-validator raises EmailNotValidError with detailed message

@@ -21,12 +21,12 @@ logger = structlog.get_logger()
 class JWTPayload:
     """Decoded JWT payload."""
 
-    def __init__(self, user_id: str, email: str, role: str) -> None:
+    def __init__(self, user_id: str, email: str | None, role: str) -> None:
         """Initialize JWT payload.
 
         Args:
             user_id: User UUID
-            email: User email
+            email: User email (optional)
             role: User role (customer, courier, restaurant_owner, admin)
         """
         self.user_id = user_id
@@ -65,7 +65,7 @@ async def verify_jwt_token(
 
         token_type = payload.get("type")
 
-        if not user_id or not email or not role:
+        if not user_id or not role:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail={
@@ -172,7 +172,7 @@ def get_optional_user(request: Request) -> JWTPayload | None:
         email = payload.get("email")
         role = payload.get("role")
 
-        if user_id and email and role and payload.get("type") == "access":  # nosec B105
+        if user_id and role and payload.get("type") == "access":  # nosec B105
             return JWTPayload(user_id=user_id, email=email, role=role)
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
         pass

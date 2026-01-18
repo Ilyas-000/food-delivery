@@ -69,5 +69,8 @@ addopts = [
     "-q",
     "--disable-warnings",
     "--cov=src",
-    "--cov-report=",
+    "--cov-config=pyproject.toml",
 ]
+
+[tool.coverage.run]
+data_file = "/tmp/coverage-user-service"

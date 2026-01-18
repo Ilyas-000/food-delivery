@@ -12,10 +12,10 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from shared.common.jwt import decode_token_unverified
 
-from ..config import settings
-from ..deps.redis import get_redis
-from ..middleware.jwt_validator import JWTPayload, verify_jwt_token
-from ..middleware.rate_limiter import RateLimiter
+from src.config import settings
+from src.dependencies.redis_client import get_redis
+from src.middleware.jwt_validator import JWTPayload, verify_jwt_token
+from src.middleware.rate_limiter import RateLimiter
 
 router = APIRouter()
 logger = structlog.get_logger()

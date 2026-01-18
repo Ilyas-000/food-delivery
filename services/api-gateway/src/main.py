@@ -8,11 +8,11 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import settings
-from .deps.redis import close_redis, init_redis
-from .middleware.circuit_breaker import CircuitBreakerMiddleware
-from .middleware.logging import RequestLoggingMiddleware
-from .routes import health, proxy
+from src.config import settings
+from src.dependencies.redis_client import close_redis, init_redis
+from src.middleware.circuit_breaker import CircuitBreakerMiddleware
+from src.middleware.logging import RequestLoggingMiddleware
+from src.routes import health, proxy
 
 
 @asynccontextmanager
@@ -63,33 +63,39 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Redis connection closed")
 
 
-# Create FastAPI app
-app = FastAPI(
-    title="Food Delivery API Gateway",
-    description="Single entry point for all microservices",
-    version="1.0.0",
-    lifespan=lifespan,
-    docs_url="/docs" if settings.debug else None,
-    redoc_url="/redoc" if settings.debug else None,
-)
+def create_app() -> FastAPI:
+    """Create FastAPI application."""
+    app = FastAPI(
+        title="Food Delivery API Gateway",
+        description="Single entry point for all microservices",
+        version="1.0.0",
+        lifespan=lifespan,
+        docs_url="/docs" if settings.debug else None,
+        redoc_url="/redoc" if settings.debug else None,
+    )
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=settings.cors_credentials,
-    allow_methods=settings.cors_methods,
-    allow_headers=settings.cors_headers,
-)
+    # CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=settings.cors_credentials,
+        allow_methods=settings.cors_methods,
+        allow_headers=settings.cors_headers,
+    )
 
-# Custom middleware (order matters!)
-app.add_middleware(RequestLoggingMiddleware)
-app.add_middleware(
-    CircuitBreakerMiddleware,
-    failure_threshold=settings.circuit_breaker_failure_threshold,
-    recovery_timeout=settings.circuit_breaker_recovery_timeout,
-)
+    # Custom middleware (order matters!)
+    app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(
+        CircuitBreakerMiddleware,
+        failure_threshold=settings.circuit_breaker_failure_threshold,
+        recovery_timeout=settings.circuit_breaker_recovery_timeout,
+    )
 
-# Include routers
-app.include_router(health.router, tags=["Health"])
-app.include_router(proxy.router, tags=["Proxy"])
+    # Include routers
+    app.include_router(health.router, tags=["Health"])
+    app.include_router(proxy.router, tags=["Proxy"])
+
+    return app
+
+
+app = create_app()

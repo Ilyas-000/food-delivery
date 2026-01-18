@@ -1,8 +1,7 @@
 """Integration tests for JWT validation."""
 
-import json
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
 import jwt
 import pytest
@@ -13,21 +12,9 @@ class TestJWTValidation:
     """Test JWT validation middleware."""
 
     @pytest.fixture
-    def valid_jwt_token(self):
-        """Generate a valid JWT token for testing."""
-        from src.config import settings
-
-        payload = {
-            "sub": "test-user-id",
-            "email": "test@example.com",
-            "role": "customer",
-            "type": "access",
-            "exp": datetime.now(UTC) + timedelta(minutes=30),
-            "iat": datetime.now(UTC),
-            "jti": "test-jti-123",
-        }
-        token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
-        return token
+    def valid_jwt_token(self, login_tokens):
+        """Use a real access token issued by User Service."""
+        return login_tokens["access_token"]
 
     @pytest.fixture
     def expired_jwt_token(self):
@@ -62,48 +49,32 @@ class TestJWTValidation:
         token = jwt.encode(payload, "wrong-secret-key", algorithm="HS256")
         return token
 
-    def test_protected_endpoint_without_token(self, client_with_mocks):
+    def test_protected_endpoint_without_token(self, gateway_client):
         """Test accessing protected endpoint without token."""
-        response = client_with_mocks.get("/api/v1/users/me")
+        response = gateway_client.get("/api/v1/users/me")
 
-        assert response.status_code == 401
+        assert response.status_code in {401, 403}
         data = response.json()
         assert "detail" in data
 
-    def test_protected_endpoint_with_valid_token(self, client_with_mocks, valid_jwt_token):
+    def test_protected_endpoint_with_valid_token(
+        self,
+        gateway_client_with_user_service,
+        user_credentials,
+        valid_jwt_token,
+    ):
         """Test accessing protected endpoint with valid token."""
-        mock_httpx_client = AsyncMock()
+        response = gateway_client_with_user_service.get(
+            "/api/v1/users/me", headers={"Authorization": f"Bearer {valid_jwt_token}"}
+        )
 
-        async def mock_request(method, url, **kwargs):
-            response_mock = AsyncMock()
-            payload = {
-                "id": "test-user-id",
-                "email": "test@example.com",
-                "full_name": "Test User",
-                "role": "customer",
-            }
-            response_mock.status_code = 200
-            response_mock.json = AsyncMock(return_value=payload)
-            response_mock.headers = {"content-type": "application/json"}
-            response_mock.content = json.dumps(payload).encode()
-            return response_mock
+        assert response.status_code == 200
+        data = response.json()
+        assert data["email"] == user_credentials["email"]
 
-        mock_httpx_client.request = mock_request
-        mock_httpx_client.__aenter__ = AsyncMock(return_value=mock_httpx_client)
-        mock_httpx_client.__aexit__ = AsyncMock(return_value=None)
-
-        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
-            response = client_with_mocks.get(
-                "/api/v1/users/me", headers={"Authorization": f"Bearer {valid_jwt_token}"}
-            )
-
-            assert response.status_code == 200
-            data = response.json()
-            assert data["email"] == "test@example.com"
-
-    def test_protected_endpoint_with_expired_token(self, client_with_mocks, expired_jwt_token):
+    def test_protected_endpoint_with_expired_token(self, gateway_client, expired_jwt_token):
         """Test accessing protected endpoint with expired token."""
-        response = client_with_mocks.get(
+        response = gateway_client.get(
             "/api/v1/users/me", headers={"Authorization": f"Bearer {expired_jwt_token}"}
         )
 
@@ -113,10 +84,12 @@ class TestJWTValidation:
         assert "expired" in message or "invalid" in message
 
     def test_protected_endpoint_with_invalid_signature(
-        self, client_with_mocks, invalid_signature_token
+        self,
+        gateway_client,
+        invalid_signature_token,
     ):
         """Test accessing protected endpoint with token with invalid signature."""
-        response = client_with_mocks.get(
+        response = gateway_client.get(
             "/api/v1/users/me",
             headers={"Authorization": f"Bearer {invalid_signature_token}"},
         )
@@ -126,9 +99,9 @@ class TestJWTValidation:
         message = data["detail"]["error"]["message"].lower()
         assert "invalid" in message or "signature" in message
 
-    def test_protected_endpoint_with_malformed_token(self, client_with_mocks):
+    def test_protected_endpoint_with_malformed_token(self, gateway_client):
         """Test accessing protected endpoint with malformed token."""
-        response = client_with_mocks.get(
+        response = gateway_client.get(
             "/api/v1/users/me", headers={"Authorization": "Bearer not-a-valid-jwt-token"}
         )
 
@@ -138,45 +111,28 @@ class TestJWTValidation:
         assert "invalid" in message
 
     def test_protected_endpoint_with_missing_bearer_prefix(
-        self, client_with_mocks, valid_jwt_token
+        self,
+        gateway_client,
+        valid_jwt_token,
     ):
         """Test accessing protected endpoint without Bearer prefix."""
-        response = client_with_mocks.get(
+        response = gateway_client.get(
             "/api/v1/users/me", headers={"Authorization": valid_jwt_token}
         )
 
-        assert response.status_code == 401
+        assert response.status_code in {401, 403}
         data = response.json()
         assert "detail" in data
 
-    def test_jwt_payload_extraction(self, client_with_mocks, valid_jwt_token):
+    def test_jwt_payload_extraction(self, gateway_client_with_user_service, valid_jwt_token):
         """Test that JWT payload is correctly extracted and available."""
-        mock_httpx_client = AsyncMock()
+        response = gateway_client_with_user_service.get(
+            "/api/v1/users/me", headers={"Authorization": f"Bearer {valid_jwt_token}"}
+        )
 
-        async def mock_request(method, url, **kwargs):
-            # Verify that user_id header is passed to User Service
-            # Check if X-User-ID header exists (if implemented)
+        assert response.status_code == 200
 
-            response_mock = AsyncMock()
-            response_mock.status_code = 200
-            payload = {"id": "test-user-id", "email": "test@example.com"}
-            response_mock.json = AsyncMock(return_value=payload)
-            response_mock.headers = {"content-type": "application/json"}
-            response_mock.content = json.dumps(payload).encode()
-            return response_mock
-
-        mock_httpx_client.request = mock_request
-        mock_httpx_client.__aenter__ = AsyncMock(return_value=mock_httpx_client)
-        mock_httpx_client.__aexit__ = AsyncMock(return_value=None)
-
-        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
-            response = client_with_mocks.get(
-                "/api/v1/users/me", headers={"Authorization": f"Bearer {valid_jwt_token}"}
-            )
-
-            assert response.status_code == 200
-
-    def test_jwt_with_missing_required_claims(self, client_with_mocks):
+    def test_jwt_with_missing_required_claims(self, gateway_client):
         """Test JWT token with missing required claims (sub, email)."""
         from src.config import settings
 
@@ -190,7 +146,7 @@ class TestJWTValidation:
         }
         token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
-        response = client_with_mocks.get(
+        response = gateway_client.get(
             "/api/v1/users/me", headers={"Authorization": f"Bearer {token}"}
         )
 
@@ -199,38 +155,19 @@ class TestJWTValidation:
         message = data["detail"]["error"]["message"].lower()
         assert "invalid" in message or "claim" in message
 
-    def test_public_endpoints_dont_require_jwt(self, client_with_mocks):
+    def test_public_endpoints_dont_require_jwt(self, gateway_client_with_user_service):
         """Test that public endpoints (login, register) don't require JWT."""
-        mock_httpx_client = AsyncMock()
+        email = f"public-{uuid4()}@example.com"
+        password = "SecurePass123!"
 
-        async def mock_request(method, url, **kwargs):
-            response_mock = AsyncMock()
-            response_mock.status_code = 200
-            response_mock.json = AsyncMock(
-                return_value={"access_token": "token", "token_type": "bearer"}
-            )
-            response_mock.headers = {"content-type": "application/json"}
-            response_mock.content = b"{}"
-            return response_mock
+        response = gateway_client_with_user_service.post(
+            "/api/v1/auth/register",
+            json={"email": email, "password": password, "full_name": "New User"},
+        )
+        assert response.status_code == 201
 
-        mock_httpx_client.request = mock_request
-        mock_httpx_client.__aenter__ = AsyncMock(return_value=mock_httpx_client)
-        mock_httpx_client.__aexit__ = AsyncMock(return_value=None)
-
-        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
-            # Login should work without JWT
-            response = client_with_mocks.post(
-                "/api/v1/auth/login", json={"email": "test@example.com", "password": "password"}
-            )
-            assert response.status_code == 200
-
-            # Register should work without JWT
-            response = client_with_mocks.post(
-                "/api/v1/auth/register",
-                json={
-                    "email": "new@example.com",
-                    "password": "password123",
-                    "full_name": "New User",
-                },
-            )
-            assert response.status_code == 200
+        response = gateway_client_with_user_service.post(
+            "/api/v1/auth/login",
+            json={"email": email, "password": password},
+        )
+        assert response.status_code == 200

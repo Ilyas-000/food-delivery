@@ -32,6 +32,47 @@ else
   echo -e "${RED}✗${NC} Kafka is down"
 fi
 
+check_container_health() {
+  local name="$1"
+  local label="$2"
+
+  if ! docker ps -a --format '{{.Names}}' | grep -q "^${name}$"; then
+    echo -e "${YELLOW}!${NC} ${label} container is not running"
+    return
+  fi
+
+  local status
+  status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{end}}' "${name}" 2>/dev/null)"
+  if [ -z "${status}" ]; then
+    local runtime_status
+    runtime_status="$(docker inspect --format='{{.State.Status}}' "${name}" 2>/dev/null || echo "unknown")"
+    if [ "${runtime_status}" = "running" ]; then
+      echo -e "${GREEN}✓${NC} ${label} is running (no healthcheck)"
+    else
+      echo -e "${RED}✗${NC} ${label} is ${runtime_status}"
+    fi
+    return
+  fi
+  if [ "${status}" = "healthy" ]; then
+    echo -e "${GREEN}✓${NC} ${label} is healthy"
+  elif [ "${status}" = "starting" ]; then
+    echo -e "${YELLOW}!${NC} ${label} is starting"
+  elif [ "${status}" = "unhealthy" ]; then
+    echo -e "${RED}✗${NC} ${label} is unhealthy"
+  else
+    echo -e "${YELLOW}!${NC} ${label} health is unknown"
+  fi
+}
+
+# Check Zookeeper, Kafka UI, and PgAdmin (if running)
+check_container_health "food-delivery-zookeeper" "Zookeeper"
+check_container_health "food-delivery-kafka-ui" "Kafka UI"
+check_container_health "food-delivery-pgadmin" "PgAdmin"
+
+# Check User Service and API Gateway (if running)
+check_container_health "food-delivery-user-service" "User Service"
+check_container_health "food-delivery-api-gateway" "API Gateway"
+
 if docker ps -a --format '{{.Names}}' | grep -q '^food-delivery-clickhouse$'; then
   if docker exec food-delivery-clickhouse clickhouse-client --query "SELECT 1" &> /dev/null; then
     echo -e "${GREEN}✓${NC} ClickHouse is healthy"

@@ -18,8 +18,7 @@ from src.application.use_cases.get_user_profile import GetUserProfileUseCase
 from src.application.use_cases.update_user_profile import UpdateUserProfileUseCase
 from src.domain.entities.user import User
 from src.domain.exceptions.base import PermissionDeniedError
-from src.interface.api.v1.schemas.auth import UserResponse
-from src.interface.api.v1.schemas.users import UpdateProfileRequest
+from src.interface.api.v1.schemas.users import UpdateProfileRequest, UserResponse
 from src.interface.dependencies.auth import get_current_user
 from src.interface.dependencies.user import (
     get_update_user_profile_use_case,

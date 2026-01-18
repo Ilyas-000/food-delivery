@@ -1,225 +1,111 @@
 # User Service
 
-**Сервис управления пользователями и аутентификации**
+Сервис управления пользователями и аутентификации.
 
-## Описание
+## Основные функции
 
-User Service отвечает за:
-- Регистрацию новых пользователей
-- Аутентификацию (JWT токены)
-- Управление профилями пользователей
-- Управление ролями (Customer, Courier, RestaurantOwner, Admin)
+- Регистрация и логин
+- JWT access/refresh токены
+- Logout с ревокацией refresh token
+- Профиль пользователя (получение/обновление)
+- Роли: Customer, Courier, RestaurantOwner, Admin
 
 ## Технологии
 
-- **FastAPI** - веб-фреймворк
-- **SQLAlchemy 2.0** - ORM (async)
-- **Alembic** - миграции БД
-- **PostgreSQL** - база данных
-- **Redis** - кэш и сессии
-- **JWT** - аутентификация
-- **Bcrypt** - хеширование паролей
+- FastAPI
+- SQLAlchemy 2.0 (async)
+- Alembic
+- PostgreSQL
+- Redis
+- JWT, bcrypt
 
 ## Структура проекта (Clean Architecture)
 
 ```
 src/
-├── domain/              # Бизнес-логика (независимая от фреймворков)
-│   ├── entities/        # Сущности (User)
-│   ├── value_objects/   # Value Objects (Email, UserRole)
-│   └── exceptions/      # Domain исключения
-│
-├── application/         # Use Cases (бизнес-правила приложения)
-│   ├── use_cases/       # Use Cases (RegisterUser, LoginUser)
-│   ├── dto/             # Data Transfer Objects
-│   └── interfaces/      # Интерфейсы (IUserRepository)
-│
-├── infrastructure/      # Внешние зависимости
-│   ├── database/        # PostgreSQL (SQLAlchemy)
-│   └── security/        # JWT, password hashing
-│
-└── interface/           # Внешний интерфейс (API)
-    └── api/v1/routes/   # FastAPI routes
+├── domain/
+├── application/
+├── infrastructure/
+└── interface/
 ```
 
-## Зависимости между слоями
+## Запуск
 
-```
-Interface → Application → Domain
-    ↓           ↓
-Infrastructure
-```
-
-**Правила:**
-- Domain не знает о других слоях (чистая бизнес-логика)
-- Application использует Domain и определяет интерфейсы
-- Infrastructure реализует интерфейсы из Application
-- Interface использует Application
-
-## Локальная разработка
-
-### Запуск через Docker Compose (рекомендуется)
+### Через Docker Compose (рекомендуется)
 
 ```bash
-# Из корня проекта
-cd infrastructure
-docker-compose up user-service
-
-# Проверка health check
+make up
 curl http://localhost:8001/health
-
-# API документация
-open http://localhost:8001/docs
 ```
 
-### Запуск локально (для разработки)
+Если нужно поднять только сервис:
 
 ```bash
-# Установка зависимостей
-cd services/user-service
-uv venv
-source .venv/bin/activate  # или .venv\Scripts\activate на Windows
-uv pip install -e .
-uv pip install -e ../../shared
+docker-compose --env-file .env -f infrastructure/docker-compose.yml up user-service
+```
 
-# Запуск PostgreSQL и Redis через Docker
-cd ../../infrastructure
-docker-compose up postgres redis
+### Локально (для разработки)
 
-# Запуск сервиса
-cd ../services/user-service
-python -m src.main
+```bash
+# инфраструктура в Docker
+make up
 
-# Или через uvicorn с hot-reload
-uvicorn src.main:app --reload --port 8001
+# сервис локально
+make dev-user
 ```
 
 ## Переменные окружения
 
 Большинство переменных используют prefix `USER_SERVICE_`.
-Параметры подключения к PostgreSQL берутся из общих `POSTGRES_*` и могут
-переопределяться через `USER_SERVICE_DB_*`.
 
-```bash
-# Service
-USER_SERVICE_SERVICE_NAME=user-service
-USER_SERVICE_ENVIRONMENT=development
-USER_SERVICE_DEBUG=true
-USER_SERVICE_LOG_LEVEL=INFO
+Ключевые настройки:
+- `POSTGRES_HOST` (локально: `localhost`, в Docker: `postgres`)
+- `POSTGRES_PORT`
+- `USER_SERVICE_DB_NAME/USER/PASSWORD`
+- `USER_SERVICE_JWT_SECRET_KEY`
+- `USER_SERVICE_REDIS_HOST` (локально: `localhost`, в Docker: `redis`)
 
-# API
-USER_SERVICE_API_HOST=0.0.0.0
-USER_SERVICE_API_PORT=8001
-
-# Database (shared PostgreSQL)
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-
-# Database (service-specific overrides)
-USER_SERVICE_DB_NAME=user_service_db
-USER_SERVICE_DB_USER=user_service_user
-USER_SERVICE_DB_PASSWORD=user_service_password_change_me
-
-# JWT
-USER_SERVICE_JWT_SECRET_KEY=your-secret-key
-USER_SERVICE_JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
-USER_SERVICE_JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
-
-# Redis
-USER_SERVICE_REDIS_HOST=localhost
-USER_SERVICE_REDIS_PORT=6379
-```
+Смотри `.env.example` для полного списка.
 
 ## API Endpoints
 
-### Health Checks
+### Health
+- `GET /health`
 
-- `GET /health` - простая проверка доступности
+### Auth
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
 
-### Authentication
-
-- ✅ `POST /api/v1/auth/register` - регистрация (IMPLEMENTED)
-- ✅ `POST /api/v1/auth/login` - логин
-- ✅ `POST /api/v1/auth/refresh` - обновление токена
-- `POST /api/v1/auth/logout` - выход (TODO)
-
-### Users (TODO)
-
-- `GET /api/v1/users/me` - текущий пользователь
-- `PATCH /api/v1/users/me` - обновить профиль
-- `GET /api/v1/users/{user_id}` - получить пользователя (admin)
+### Users
+- `GET /api/v1/users/me`
+- `PATCH /api/v1/users/me`
+- `GET /api/v1/users/{user_id}` (admin)
 
 ## Тестирование
 
 ```bash
-# Unit тесты
-pytest tests/unit
-
-# Integration тесты
-pytest tests/integration
-
-# Все тесты с coverage
-pytest --cov=src tests/
-
-# Только быстрые тесты
-pytest -m "not slow"
+make test-user
 ```
 
-## Миграции базы данных
+## Миграции
 
 ```bash
-# Создать новую миграцию
 alembic revision --autogenerate -m "description"
-
-# Применить миграции
 alembic upgrade head
-
-# Откатить последнюю миграцию
 alembic downgrade -1
-
-# История миграций
-alembic history
 ```
 
-## Разработка
+## Статус
 
-### Добавление новой фичи
+### Реализовано
+- Регистрация, логин, refresh, logout
+- Профиль пользователя (получение/обновление)
+- Доменные проверки Email/Password
+- Миграции и репозитории
+- Тесты (unit + integration)
 
-1. **Domain Layer**: создать entities, value objects
-2. **Application Layer**: создать use case, DTO, interface
-3. **Infrastructure Layer**: реализовать interface (repository, external service)
-4. **Interface Layer**: добавить API endpoint
-5. **Tests**: написать unit и integration тесты
-
-### Code Style
-
-```bash
-# Форматирование
-ruff format .
-
-# Линтинг
-ruff check .
-
-# Type checking
-mypy src/
-```
-
-## Implemented Features
-
-- ✅ **User Registration** - Clean Architecture with domain validation
-  - Email Value Object (RFC-compliant with email-validator)
-  - Password Value Object (min 8 chars, complexity requirements)
-  - Domain exceptions mapped to HTTP responses (API_CONVENTIONS.md)
-  - Alembic migrations configured for async SQLAlchemy
-  - Structured logging with structlog
-
-## TODO (следующие ветки)
-
-- [x] Реализация аутентификации (JWT login, refresh)
-- [ ] Logout (refresh token revocation)
-- [ ] CRUD операции с профилем
-- [ ] Unit и integration тесты
-- [ ] Kafka события (UserCreated, UserUpdated)
-- [ ] Redis кэширование
+### TODO
+- Kafka события (UserCreated/UserUpdated)
+- Redis кеширование

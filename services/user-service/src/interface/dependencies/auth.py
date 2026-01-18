@@ -24,7 +24,7 @@ from src.domain.exceptions.base import InvalidTokenError
 from src.infrastructure.security.password_hasher import PasswordHasher
 from src.infrastructure.security.token_service import TokenService
 from src.interface.dependencies.database import get_user_repository
-from src.interface.dependencies.redis import get_refresh_token_repository
+from src.interface.dependencies.refresh_token_repository import get_refresh_token_repository
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 

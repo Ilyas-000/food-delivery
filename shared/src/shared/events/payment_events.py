@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from annotated_types import Ge, MaxLen, MinLen
 
-from .base import BaseEvent
+from shared.events.base import BaseEvent
 
 
 class PaymentReservedEvent(BaseEvent):

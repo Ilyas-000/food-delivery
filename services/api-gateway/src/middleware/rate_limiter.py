@@ -15,7 +15,7 @@ from fastapi import HTTPException, Request, status
 from shared.common.jwt import decode_token_unverified
 from shared.common.redis import RedisClient
 
-from ..config import settings
+from src.config import settings
 
 logger = structlog.get_logger()
 

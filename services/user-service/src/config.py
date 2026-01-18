@@ -7,6 +7,7 @@ Loads settings from environment variables using pydantic-settings.
 from functools import cached_property, lru_cache
 from typing import cast
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BASE_ENV_CONFIG = cast(
@@ -97,6 +98,13 @@ class Settings(BaseSettings):
 
     # Health Check
     health_check_interval_seconds: int = 30
+
+    @field_validator("log_level", mode="before")
+    @classmethod
+    def _normalize_log_level(cls, value: str) -> str:
+        if isinstance(value, str):
+            return value.lower()
+        return value
 
 
 @lru_cache

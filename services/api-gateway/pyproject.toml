@@ -79,7 +79,7 @@ addopts = [
     "-q",
     "--strict-markers",
     "--cov=src",
-    "--cov-report=",
+    "--cov-config=pyproject.toml",
 ]
 testpaths = ["tests"]
 pythonpath = [".", "../../shared/src"]
@@ -91,6 +91,7 @@ markers = [
 ]
 
 [tool.coverage.run]
+data_file = "/tmp/coverage-api-gateway"
 source = ["src"]
 omit = ["tests/*", "**/__pycache__/*"]
 

@@ -26,13 +26,13 @@ from src.application.use_cases.logout_user import LogoutUserUseCase
 from src.application.use_cases.refresh_token import RefreshTokenUseCase
 from src.application.use_cases.register_user import RegisterUserUseCase
 from src.interface.api.v1.schemas.auth import (
-    LoginRequest,
-    LogoutRequest,
-    RefreshRequest,
-    RegisterRequest,
+    LoginUserRequest,
+    LogoutUserRequest,
+    RefreshTokenRequest,
+    RegisterUserRequest,
     TokenResponse,
-    UserResponse,
 )
+from src.interface.api.v1.schemas.users import UserResponse
 from src.interface.dependencies.auth import (
     get_login_user_use_case,
     get_logout_user_use_case,
@@ -128,7 +128,7 @@ router = APIRouter(
     },
 )
 async def register_user(
-    request: RegisterRequest,
+    request: RegisterUserRequest,
     use_case: Annotated[RegisterUserUseCase, Depends(get_register_user_use_case)],
 ) -> UserResponse:
     """
@@ -212,7 +212,7 @@ async def register_user(
     """,
 )
 async def login_user(
-    request: LoginRequest,
+    request: LoginUserRequest,
     use_case: Annotated[LoginUserUseCase, Depends(get_login_user_use_case)],
 ) -> TokenResponse:
     """Authenticate user and return JWT token pair."""
@@ -242,7 +242,7 @@ async def login_user(
     """,
 )
 async def refresh_token(
-    request: RefreshRequest,
+    request: RefreshTokenRequest,
     use_case: Annotated[RefreshTokenUseCase, Depends(get_refresh_token_use_case)],
 ) -> TokenResponse:
     """Refresh JWT token pair."""
@@ -270,7 +270,7 @@ async def refresh_token(
     """,
 )
 async def logout_user(
-    request: LogoutRequest,
+    request: LogoutUserRequest,
     use_case: Annotated[LogoutUserUseCase, Depends(get_logout_user_use_case)],
 ) -> None:
     """Revoke refresh token in Redis whitelist."""

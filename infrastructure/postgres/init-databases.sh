@@ -37,31 +37,58 @@ EOSQL
 
 echo "Databases created successfully."
 
-# Create users and grant privileges (can use DO block for these)
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
+create_role_and_grants() {
+  local db_name="$1"
+  local db_user="$2"
+  local db_password="$3"
+
+  if [ -z "${db_user}" ]; then
+    return
+  fi
+
+  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
 DO \$\$
 BEGIN
-    -- User Service user (if configured)
-    IF '${USER_SERVICE_DB_USER:-}' != '' THEN
-        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${USER_SERVICE_DB_USER}') THEN
-            CREATE ROLE "${USER_SERVICE_DB_USER}" WITH LOGIN PASSWORD '${USER_SERVICE_DB_PASSWORD}';
-            RAISE NOTICE 'Created role: ${USER_SERVICE_DB_USER}';
-        END IF;
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${db_user}') THEN
+        CREATE ROLE "${db_user}" WITH LOGIN PASSWORD '${db_password}';
+        RAISE NOTICE 'Created role: ${db_user}';
     END IF;
 END
 \$\$;
 
--- Grant privileges (must be outside DO block)
-GRANT ALL PRIVILEGES ON DATABASE "${USER_SERVICE_DB_NAME}" TO "${POSTGRES_USER}";
+GRANT ALL PRIVILEGES ON DATABASE "${db_name}" TO "${POSTGRES_USER}";
 EOSQL
 
-if [ -n "${USER_SERVICE_DB_USER:-}" ]; then
-  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "${USER_SERVICE_DB_NAME}" <<-EOSQL
-  GRANT ALL PRIVILEGES ON DATABASE "${USER_SERVICE_DB_NAME}" TO "${USER_SERVICE_DB_USER}";
-  GRANT USAGE, CREATE ON SCHEMA public TO "${USER_SERVICE_DB_USER}";
-  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO "${USER_SERVICE_DB_USER}";
-  ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "${USER_SERVICE_DB_USER}";
+  psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "${db_name}" <<-EOSQL
+GRANT ALL PRIVILEGES ON DATABASE "${db_name}" TO "${db_user}";
+GRANT USAGE, CREATE ON SCHEMA public TO "${db_user}";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO "${db_user}";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "${db_user}";
 EOSQL
-fi
+}
+
+services=(
+  "USER_SERVICE"
+  "RESTAURANT_SERVICE"
+  "ORDER_SERVICE"
+  "PAYMENT_SERVICE"
+  "DELIVERY_SERVICE"
+  "NOTIFICATION_SERVICE"
+  "REVIEW_SERVICE"
+)
+
+for service in "${services[@]}"; do
+  db_name_var="${service}_DB_NAME"
+  db_user_var="${service}_DB_USER"
+  db_password_var="${service}_DB_PASSWORD"
+
+  db_name="${!db_name_var:-}"
+  db_user="${!db_user_var:-}"
+  db_password="${!db_password_var:-}"
+
+  if [ -n "${db_name}" ]; then
+    create_role_and_grants "${db_name}" "${db_user}" "${db_password}"
+  fi
+done
 
 echo "Database initialization complete."

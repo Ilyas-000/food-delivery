@@ -1,10 +1,14 @@
 """Redis dependency helpers for API Gateway."""
 
+import asyncio
+
 from shared.common.redis import RedisClient
 
-from ..config import settings
+from src.config import settings
 
 _redis_client: RedisClient | None = None
+_REDIS_CONNECT_RETRIES = 30
+_REDIS_CONNECT_DELAY_SECONDS = 2.0
 
 
 async def init_redis() -> None:
@@ -20,7 +24,17 @@ async def init_redis() -> None:
         password=settings.redis_password,
         decode_responses=True,
     )
-    await _redis_client.ping()
+    last_error: Exception | None = None
+    for attempt in range(1, _REDIS_CONNECT_RETRIES + 1):
+        try:
+            await _redis_client.ping()
+            return
+        except Exception as exc:  # pragma: no cover - network timing issues
+            last_error = exc
+            if attempt == _REDIS_CONNECT_RETRIES:
+                break
+            await asyncio.sleep(_REDIS_CONNECT_DELAY_SECONDS)
+    raise RuntimeError("Redis is unavailable after retries") from last_error
 
 
 async def close_redis() -> None:

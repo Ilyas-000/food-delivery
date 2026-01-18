@@ -5,8 +5,8 @@ import structlog
 from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 
-from ..config import settings
-from ..deps.redis import get_redis
+from src.config import settings
+from src.dependencies.redis_client import get_redis
 
 router = APIRouter()
 logger = structlog.get_logger()

@@ -180,11 +180,6 @@ addopts = [
     "-v",
     "--strict-markers",
     "--strict-config",
-    "--cov=services",
-    "--cov=shared",
-    "--cov-report=term-missing:skip-covered",
-    "--cov-report=html",
-    "--cov-report=xml",
 ]
 markers = [
     "unit: Unit tests",
@@ -199,6 +194,7 @@ filterwarnings = [
 
 # Coverage configuration
 [tool.coverage.run]
+data_file = "/tmp/coverage-food-delivery"
 source = ["services", "shared"]
 omit = [
     "*/tests/*",

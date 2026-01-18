@@ -12,7 +12,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from shared.common.jwt import decode_token
 
-from ..config import settings
+from src.config import settings
 
 security = HTTPBearer()
 logger = structlog.get_logger()

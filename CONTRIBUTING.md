@@ -27,13 +27,13 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 1. **Fork and clone the repository**
    ```bash
-   git clone https://github.com/your-username/food-delivery.git
+   git clone https://github.com/Ilyas-000/food-delivery.git
    cd food-delivery
    ```
 
 2. **Run the setup script**
    ```bash
-   bash scripts/setup-dev.sh
+   make setup-dev
    ```
 
 3. **Verify installation**
@@ -147,6 +147,7 @@ make lint    # Check linting
 - Line length: 100 characters
 - Indentation: 4 spaces
 - Quotes: Double quotes
+- Imports: Use absolute imports (`from src...` / `from shared...`), avoid relative imports (`from .` / `from ..`)
 - Type hints: Required for all functions
 - Docstrings: Required for public methods
 
@@ -382,19 +383,13 @@ Infrastructure → Application → Domain
 
 ### Adding a New Service
 
-Use the template:
-
-```bash
-bash scripts/create-service.sh my-new-service
-```
-
-This creates the full Clean Architecture structure.
+На текущем этапе шаблона скрипта нет. Используй структуру `services/user-service` как базовый пример.
 
 ### Event-Driven Communication
 
 All events go through Kafka:
 
-1. Define event in `shared/events/`
+1. Define event in `shared/src/shared/events/`
 2. Publish via Outbox Pattern
 3. Subscribe with idempotent handlers
 
@@ -416,7 +411,7 @@ For distributed transactions:
 2. Each step has compensation
 3. Store saga state for recovery
 
-See `docs/architecture/PATTERNS.md` for details.
+See `docs/adr/` for architecture decisions.
 
 ---
 
@@ -425,7 +420,7 @@ See `docs/architecture/PATTERNS.md` for details.
 - Read [CLAUDE.md](./CLAUDE.md) for AI agent context
 - Check [DEVELOPMENT-ROADMAP.md](./DEVELOPMENT-ROADMAP.md) for current phase
 - Review existing [ADRs](./docs/adr/)
-- Ask in GitHub Discussions
+- Ask in project chat
 
 ---
 

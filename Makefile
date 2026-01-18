@@ -1,4 +1,4 @@
-.PHONY: help install dev-install up down restart logs health clean clean-images test lint format type-check pre-commit migrate seed
+.PHONY: help install dev-install setup-dev up down restart logs health clean clean-image clean-images test test-all lint format type-check pre-commit migrate seed
 
 # Default target
 .DEFAULT_GOAL := help
@@ -27,6 +27,9 @@ dev-install: ## Install development dependencies
 	pre-commit install
 	pre-commit install --hook-type commit-msg
 	@echo "$(GREEN)Development environment ready!$(NC)"
+
+setup-dev: ## Bootstrap dev machine (env, deps, dirs)
+	@bash scripts/setup-dev.sh
 
 ## Docker & Services
 
@@ -68,6 +71,8 @@ clean: ## Remove all containers, volumes, and build artifacts
 	rm -rf htmlcov coverage.xml .coverage 2>/dev/null || true
 	@echo "$(GREEN)Cleanup complete!$(NC)"
 
+clean-image: clean-images ## Alias for clean-images
+
 clean-images: ## Remove all containers, volumes, images, and build artifacts
 	@echo "$(RED)Cleaning up (including images)...$(NC)"
 	docker-compose --env-file .env -f infrastructure/docker-compose.yml down -v --rmi local
@@ -84,7 +89,20 @@ clean-images: ## Remove all containers, volumes, images, and build artifacts
 
 test: ## Run all tests
 	@echo "$(BLUE)Running tests...$(NC)"
-	pytest
+	@if rg --files -g 'test_*.py' tests >/dev/null 2>&1; then \
+		pytest; \
+	else \
+		echo "$(YELLOW)No root tests found in ./tests; skipping.$(NC)"; \
+	fi
+
+test-all: ## Run repo tests and all service tests
+	@$(MAKE) test
+	@for svc in services/*; do \
+		if [ -d "$$svc" ]; then \
+			echo "$(BLUE)Running tests in $$svc...$(NC)"; \
+			(cd "$$svc" && pytest -c pyproject.toml); \
+		fi; \
+	done
 
 test-unit: ## Run unit tests only
 	@echo "$(BLUE)Running unit tests...$(NC)"
@@ -152,14 +170,6 @@ seed: ## Load seed data into databases
 dev-user: ## Run User Service locally
 	@echo "$(BLUE)Starting User Service...$(NC)"
 	cd services/user-service && uvicorn src.main:app --reload --port 8001
-
-dev-restaurant: ## Run Restaurant Service locally
-	@echo "$(BLUE)Starting Restaurant Service...$(NC)"
-	cd services/restaurant-service && uvicorn src.main:app --reload --port 8002
-
-dev-order: ## Run Order Service locally
-	@echo "$(BLUE)Starting Order Service...$(NC)"
-	cd services/order-service && uvicorn src.main:app --reload --port 8003
 
 dev-gateway: ## Run API Gateway locally
 	@echo "$(BLUE)Starting API Gateway...$(NC)"

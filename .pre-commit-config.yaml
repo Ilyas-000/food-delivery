@@ -38,8 +38,6 @@ repos:
         args: [--config-file=pyproject.toml]
         files: ^services/api-gateway/
         exclude: ^(services/api-gateway/tests/|services/api-gateway/migrations/)
-        env:
-          MYPYPATH: shared/src:services/api-gateway
       - id: mypy
         name: mypy-user-service
         additional_dependencies:
@@ -58,8 +56,6 @@ repos:
         args: [--config-file=pyproject.toml]
         files: ^services/user-service/
         exclude: ^(services/user-service/tests/|services/user-service/migrations/)
-        env:
-          MYPYPATH: shared/src:services/user-service
       - id: mypy
         name: mypy-shared
         additional_dependencies:
@@ -78,8 +74,6 @@ repos:
         args: [--config-file=pyproject.toml]
         files: ^shared/
         exclude: ^(shared/tests/)
-        env:
-          MYPYPATH: shared/src
 
   # Conventional Commits validation
   - repo: https://github.com/compilerla/conventional-pre-commit

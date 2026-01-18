@@ -22,7 +22,7 @@ from src.infrastructure.database.models.user_model import UserModel
 from src.infrastructure.security.password_hasher import PasswordHasher
 from src.interface.dependencies.auth import get_password_hasher
 from src.interface.dependencies.database import get_db_session
-from src.interface.dependencies.redis import get_refresh_token_repository
+from src.interface.dependencies.refresh_token_repository import get_refresh_token_repository
 from src.main import create_app
 
 

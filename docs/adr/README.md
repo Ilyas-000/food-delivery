@@ -11,7 +11,7 @@ ADRs help us:
 - 🤔 Consider trade-offs before making decisions
 - 🔄 Onboard new team members faster
 - 📚 Build institutional knowledge
-- 🎯 Prepare for technical interviews (explain architectural decisions)
+- 🎯 Provide shared context for architectural decisions
 
 ## When to Create an ADR?
 
@@ -39,7 +39,7 @@ Create an ADR when making decisions about:
    - **Consequences**: What are the impacts?
    - **Alternatives**: What else did we consider?
 
-4. Discuss with team (or AI mentor)
+4. Discuss with team
 
 5. Mark as **Accepted** when finalized
 

@@ -21,6 +21,7 @@ class _RunStats:
 
 
 _STATS = _RunStats()
+_SKIPPED_NODE_IDS: set[str] = set()
 _COVERAGE_RED_THRESHOLD = 50.0
 _COVERAGE_YELLOW_THRESHOLD = 70.0
 
@@ -51,6 +52,15 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    if report.outcome == "skipped":
+        if report.nodeid not in _SKIPPED_NODE_IDS:
+            if getattr(report, "wasxfail", False):
+                _STATS.xfailed += 1
+            else:
+                _STATS.skipped += 1
+            _SKIPPED_NODE_IDS.add(report.nodeid)
+        return
+
     if report.when != "call":
         if report.outcome == "failed":
             _STATS.errors += 1
@@ -61,11 +71,6 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
             _STATS.xpassed += 1
         else:
             _STATS.passed += 1
-    elif report.outcome == "skipped":
-        if getattr(report, "wasxfail", False):
-            _STATS.xfailed += 1
-        else:
-            _STATS.skipped += 1
     elif report.outcome == "failed":
         _STATS.failed += 1
 

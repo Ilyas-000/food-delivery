@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, AsyncIterator
-import os
+from contextlib import suppress
 from uuid import UUID
 
 from fastapi import FastAPI
@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import (
 
 from src.application.interfaces.password_hasher import IPasswordHasher
 from src.application.interfaces.refresh_token_repository import IRefreshTokenRepository
+from src.config import settings
 from src.infrastructure.database.base import Base
 from src.infrastructure.database.models.user_model import UserModel
 from src.infrastructure.security.password_hasher import PasswordHasher
@@ -44,13 +45,18 @@ class InMemoryRefreshTokenRepository(IRefreshTokenRepository):
 
 @pytest.fixture(scope="session")
 async def async_engine() -> AsyncIterator[AsyncEngine]:
-    test_db_url = os.getenv("TEST_DATABASE_URL")
+    test_db_url = settings.test_database_url
     if not test_db_url:
-        pytest.skip("TEST_DATABASE_URL is not set")
+        pytest.skip("USER_SERVICE_TEST_DATABASE_URL is not set")
 
-    engine = create_async_engine(test_db_url, pool_pre_ping=True)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        engine = create_async_engine(test_db_url, pool_pre_ping=True)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as exc:
+        with suppress(Exception):
+            await engine.dispose()
+        pytest.skip(f"Test database unavailable: {exc}")
 
     yield engine
 
@@ -101,6 +107,6 @@ def user_service_app(
 
 @pytest.fixture()
 async def user_service_client(user_service_app: FastAPI) -> AsyncIterator[AsyncClient]:
-    transport = ASGITransport(app=user_service_app, lifespan="off")
+    transport = ASGITransport(app=user_service_app)
     async with AsyncClient(transport=transport, base_url="http://user-service") as client:
         yield client

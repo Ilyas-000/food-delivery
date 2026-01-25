@@ -139,8 +139,8 @@ def create_app() -> FastAPI:
     # === ROUTES ===
 
     # Register API v1 routes
-    app.include_router(auth.router, prefix=settings.api_prefix, tags=["auth"])
-    app.include_router(users.router, prefix=settings.api_prefix, tags=["users"])
+    app.include_router(auth.router, prefix=settings.api_prefix)
+    app.include_router(users.router, prefix=settings.api_prefix)
 
     # Health check endpoint (не требует аутентификации)
     # Format follows docs/API_CONVENTIONS.md

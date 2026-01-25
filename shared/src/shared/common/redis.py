@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol, cast
 
 import redis.asyncio as redis
 
@@ -82,4 +82,11 @@ class RedisClient:
         return self._client.pubsub()
 
     async def close(self) -> None:
-        await self._client.close()
+        # redis.asyncio type stubs don't expose aclose yet.
+        async_closer = cast(_AsyncCloser, self._client)
+        await async_closer.aclose()
+
+
+class _AsyncCloser(Protocol):
+    async def aclose(self) -> Any:
+        ...

@@ -7,8 +7,6 @@ from shared.common.redis import RedisClient
 from src.config import settings
 
 _redis_client: RedisClient | None = None
-_REDIS_CONNECT_RETRIES = 30
-_REDIS_CONNECT_DELAY_SECONDS = 2.0
 
 
 async def init_redis() -> None:
@@ -25,15 +23,15 @@ async def init_redis() -> None:
         decode_responses=True,
     )
     last_error: Exception | None = None
-    for attempt in range(1, _REDIS_CONNECT_RETRIES + 1):
+    for attempt in range(1, settings.redis_connect_retries + 1):
         try:
             await _redis_client.ping()
             return
         except Exception as exc:  # pragma: no cover - network timing issues
             last_error = exc
-            if attempt == _REDIS_CONNECT_RETRIES:
+            if attempt == settings.redis_connect_retries:
                 break
-            await asyncio.sleep(_REDIS_CONNECT_DELAY_SECONDS)
+            await asyncio.sleep(settings.redis_connect_delay_seconds)
     raise RuntimeError("Redis is unavailable after retries") from last_error
 
 

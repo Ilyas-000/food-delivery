@@ -8,6 +8,9 @@ import structlog
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from src.config import settings
+from src.utils.ip import get_client_ip
+
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Log all incoming requests and outgoing responses."""
@@ -20,54 +23,40 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         """Process request and log."""
         logger = structlog.get_logger()
 
-        # Generate request ID if not present
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
         request.state.request_id = request_id
 
-        # Start timer
-        start_time = time.time()
+        log_context = {
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "client_ip": get_client_ip(request),
+        }
 
-        # Log incoming request
-        logger.info(
-            "Incoming request",
-            request_id=request_id,
-            method=request.method,
-            path=request.url.path,
-            client_ip=request.client.host if request.client else None,
-        )
+        start_time = time.time()
+        logger.info("Incoming request", **log_context)
 
         try:
-            # Process request
             response: Response = await call_next(request)
+            duration_ms = round((time.time() - start_time) * 1000, 2)
 
-            # Calculate duration
-            duration = time.time() - start_time
-
-            # Log outgoing response
             logger.info(
                 "Outgoing response",
-                request_id=request_id,
-                method=request.method,
-                path=request.url.path,
+                **log_context,
                 status_code=response.status_code,
-                duration_ms=round(duration * 1000, 2),
+                duration_ms=duration_ms,
             )
 
-            # Add request ID to response headers
             response.headers["X-Request-ID"] = request_id
-
             return response
 
         except Exception as exc:
-            # Log error
-            duration = time.time() - start_time
+            duration_ms = round((time.time() - start_time) * 1000, 2)
             logger.error(
                 "Request failed",
-                request_id=request_id,
-                method=request.method,
-                path=request.url.path,
-                duration_ms=round(duration * 1000, 2),
+                **log_context,
+                duration_ms=duration_ms,
                 error=str(exc),
-                exc_info=True,
+                exc_info=settings.debug,
             )
             raise

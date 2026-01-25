@@ -7,7 +7,7 @@ Provides password hashing, token service, auth use cases, and current user resol
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.application.interfaces.password_hasher import IPasswordHasher
@@ -101,6 +101,7 @@ async def get_logout_user_use_case(
 
 
 async def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)],
     repository: Annotated[IUserRepository, Depends(get_user_repository)],
     token_service: Annotated[ITokenService, Depends(get_token_service)],
@@ -111,6 +112,20 @@ async def get_current_user(
     Raises:
         InvalidTokenError: If token is missing, invalid, or user not found.
     """
+    if settings.trust_gateway_headers:
+        header_user_id = request.headers.get("X-User-ID")
+        if header_user_id:
+            try:
+                user_id = UUID(header_user_id)
+            except ValueError as exc:
+                raise InvalidTokenError("Invalid gateway user id") from exc
+
+            user = await repository.get_by_id(user_id)
+            if user is None or not user.is_active:
+                raise InvalidTokenError("User not found or inactive")
+
+            return user
+
     if credentials is None or not credentials.credentials:
         raise InvalidTokenError("Missing access token")
 

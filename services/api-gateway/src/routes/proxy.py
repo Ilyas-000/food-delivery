@@ -6,6 +6,8 @@ Routes requests from clients to appropriate microservices:
 - TODO: Add other services in future phases
 """
 
+import json
+
 import httpx
 import structlog
 from fastapi import APIRouter, Depends, Request, Response
@@ -27,21 +29,23 @@ async def get_rate_limiter() -> RateLimiter:
     return RateLimiter(redis)
 
 
+async def _get_request_body(request: Request) -> bytes:
+    """Get request body once and cache it for downstream use."""
+    body = getattr(request.state, "body", None)
+    if body is None:
+        body = await request.body()
+        request.state.body = body
+    return body
+
+
 async def proxy_to_service(
     request: Request,
     service_url: str,
     path: str,
+    timeout: float | None = None,
+    user: JWTPayload | None = None,
 ) -> Response:
-    """Proxy request to backend service.
-
-    Args:
-        request: Incoming request
-        service_url: Backend service URL
-        path: Path to append to service URL
-
-    Returns:
-        Response from backend service
-    """
+    """Proxy request to backend service."""
     # Build target URL
     target_url = f"{service_url}/{path}"
 
@@ -58,17 +62,34 @@ async def proxy_to_service(
     # Add request ID for tracing
     if hasattr(request.state, "request_id"):
         headers["X-Request-ID"] = request.state.request_id
+    if user is not None:
+        headers["X-User-ID"] = user.user_id
+        headers["X-User-Role"] = user.role
+        if user.email:
+            headers["X-User-Email"] = user.email
 
     try:
-        # Forward request to backend service
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.request(
+        body = await _get_request_body(request)
+        request_timeout = timeout if timeout is not None else settings.proxy_timeout_default
+
+        async def send_request(client: httpx.AsyncClient) -> httpx.Response:
+            return await client.request(
                 method=request.method,
                 url=target_url,
                 headers=headers,
-                content=await request.body(),
+                content=body,
                 params=request.query_params,
+                timeout=request_timeout,
             )
+
+        # Forward request to backend service
+        client = getattr(request.app.state, "http_client", None)
+        if client is None:
+            logger.warning("HTTP client not initialized; using temporary client")
+            async with httpx.AsyncClient(timeout=30.0) as temp_client:
+                response = await send_request(temp_client)
+        else:
+            response = await send_request(client)
 
         # Return response (preserve status code and headers)
         return Response(
@@ -112,11 +133,6 @@ async def proxy_to_service(
         )
 
 
-# ============================================================================
-# AUTH ROUTES (Public - no JWT required)
-# ============================================================================
-
-
 @router.post("/api/v1/auth/register")
 async def register(
     request: Request,
@@ -133,6 +149,7 @@ async def register(
         request,
         settings.user_service_url,
         "api/v1/auth/register",
+        timeout=settings.proxy_timeout_auth,
     )
 
 
@@ -152,10 +169,8 @@ async def login(
     await rate_limiter.check_auth_global_rate_limit(request)
 
     # Parse request body to get email (for per-account rate limiting)
-    body = await request.body()
+    body = await _get_request_body(request)
     try:
-        import json
-
         data = json.loads(body) if body else {}
         email = data.get("email")
     except Exception:
@@ -169,6 +184,7 @@ async def login(
         request,
         settings.user_service_url,
         "api/v1/auth/login",
+        timeout=settings.proxy_timeout_auth,
     )
 
     # Record failure if login failed (for progressive backoff)
@@ -193,10 +209,8 @@ async def refresh(
     await rate_limiter.check_auth_global_rate_limit(request)
 
     # Parse request body to get refresh token
-    body = await request.body()
+    body = await _get_request_body(request)
     try:
-        import json
-
         data = json.loads(body) if body else {}
         refresh_token = data.get("refresh_token")
     except Exception:
@@ -217,6 +231,7 @@ async def refresh(
         request,
         settings.user_service_url,
         "api/v1/auth/refresh",
+        timeout=settings.proxy_timeout_auth,
     )
 
 
@@ -233,6 +248,8 @@ async def logout(
         request,
         settings.user_service_url,
         "api/v1/auth/logout",
+        timeout=settings.proxy_timeout_auth,
+        user=_user,
     )
 
 
@@ -254,6 +271,8 @@ async def get_my_profile(
         request,
         settings.user_service_url,
         "api/v1/users/me",
+        timeout=settings.proxy_timeout_user,
+        user=_user,
     )
 
 
@@ -270,6 +289,8 @@ async def update_my_profile(
         request,
         settings.user_service_url,
         "api/v1/users/me",
+        timeout=settings.proxy_timeout_user,
+        user=_user,
     )
 
 
@@ -287,6 +308,8 @@ async def get_user_by_id(
         request,
         settings.user_service_url,
         f"api/v1/users/{user_id}",
+        timeout=settings.proxy_timeout_user,
+        user=_user,
     )
 
 

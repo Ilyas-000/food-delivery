@@ -1,6 +1,5 @@
 """API Gateway Configuration."""
 
-from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +18,7 @@ class Settings(BaseSettings):
     port: int = 8000
     environment: str = "development"
     debug: bool = True
+    version: str = "1.0.0"
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
@@ -26,20 +26,16 @@ class Settings(BaseSettings):
     cors_methods: list[str] = ["*"]
     cors_headers: list[str] = ["*"]
 
-    # JWT (shared with User Service for validation, support both prefixed and unprefixed)
-    jwt_secret_key: str = Field(
-        validation_alias=AliasChoices("JWT_SECRET_KEY", "GATEWAY_JWT_SECRET_KEY")
-    )
-    jwt_algorithm: str = Field(
-        default="HS256",
-        validation_alias=AliasChoices("JWT_ALGORITHM", "GATEWAY_JWT_ALGORITHM"),
-    )
+    # JWT secret (MUST match User Service for token validation)
+    jwt_secret_key: str
 
     # Redis (for rate limiting)
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_db: int = 1  # Different from User Service (db=0)
     redis_password: str | None = None
+    redis_connect_retries: int = 30
+    redis_connect_delay_seconds: float = 2.0
 
     # Service URLs (internal Docker network)
     user_service_url: str = "http://user-service:8001"
@@ -49,23 +45,27 @@ class Settings(BaseSettings):
     # payment_service_url: str = "http://payment-service:8004"
     # delivery_service_url: str = "http://delivery-service:8005"
 
+    # Proxy timeouts (seconds)
+    proxy_timeout_default: float = 30.0
+    proxy_timeout_auth: float = 15.0
+    proxy_timeout_user: float = 10.0
+
     # Circuit Breaker settings
     circuit_breaker_failure_threshold: int = 5
     circuit_breaker_recovery_timeout: float = 30.0
-    circuit_breaker_expected_exception: type[Exception] = Exception
 
     # Rate Limiting Configuration
     rate_limit_enabled: bool = True
 
-    # Login rate limits
-    login_per_ip_minute: int = 10
+    # Login rate limits (softened for better UX)
+    login_per_ip_minute: int = 15  # was 10
     login_per_ip_hour: int = 100
-    login_per_account_minute: int = 5
+    login_per_account_minute: int = 8  # was 5
     login_per_account_hour: int = 20
-    login_per_ip_account_minute: int = 3
-    login_max_fails_count: int = 5
+    login_per_ip_account_minute: int = 5  # was 3
+    login_max_fails_count: int = 8  # was 5
     login_max_fails_window: int = 600  # 10 minutes
-    login_cooldown_duration: int = 900  # 15 minutes
+    login_cooldown_duration: int = 300  # 5 minutes (was 15)
 
     # Refresh rate limits
     refresh_per_jti_minute: int = 10
@@ -85,6 +85,10 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
     log_json: bool = True
+
+    # Proxy headers
+    trust_proxy_headers: bool = True
+    trusted_proxy_ips: str = ""
 
 
 settings = Settings()  # type: ignore[call-arg]

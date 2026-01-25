@@ -75,15 +75,19 @@ class CircuitBreaker:
         return False
 
     def record_success(self) -> None:
-        """Record successful request."""
+        """Record successful request.
+
+        Resets failure count on any success to prevent accumulation of old failures.
+        """
         if self.state == CircuitState.HALF_OPEN:
             self.logger.info(
                 "Circuit breaker recovery successful",
                 service=self.service_name,
             )
             self.state = CircuitState.CLOSED
-            self.failure_count = 0
             self.last_failure_time = None
+
+        self.failure_count = 0
 
     def record_failure(self) -> None:
         """Record failed request."""

@@ -125,7 +125,7 @@ make test-user      # тесты User Service
 make test-gateway   # тесты API Gateway
 ```
 
-Для интеграционных тестов user-service нужен `TEST_DATABASE_URL`.
+Для интеграционных тестов user-service нужен `USER_SERVICE_TEST_DATABASE_URL`.
 
 ## Структура репозитория
 

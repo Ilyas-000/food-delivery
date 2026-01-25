@@ -120,9 +120,12 @@ services:
     container_name: food-delivery-user-service
     restart: unless-stopped
     depends_on:
-      - postgres
-      - redis
-      - kafka
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     ports:
       - "8001:8001"
     environment:

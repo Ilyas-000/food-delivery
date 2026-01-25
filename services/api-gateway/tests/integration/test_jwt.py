@@ -20,6 +20,7 @@ class TestJWTValidation:
     def expired_jwt_token(self):
         """Generate an expired JWT token for testing."""
         from src.config import settings
+        from src.middleware.jwt_validator import JWT_ALGORITHM
 
         payload = {
             "sub": "test-user-id",
@@ -30,7 +31,7 @@ class TestJWTValidation:
             "iat": datetime.now(UTC) - timedelta(hours=1),
             "jti": "expired-jti",
         }
-        token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+        token = jwt.encode(payload, settings.jwt_secret_key, algorithm=JWT_ALGORITHM)
         return token
 
     @pytest.fixture
@@ -135,6 +136,7 @@ class TestJWTValidation:
     def test_jwt_with_missing_required_claims(self, gateway_client):
         """Test JWT token with missing required claims (sub, email)."""
         from src.config import settings
+        from src.middleware.jwt_validator import JWT_ALGORITHM
 
         # Token missing 'sub' claim
         payload = {
@@ -144,7 +146,7 @@ class TestJWTValidation:
             "exp": datetime.now(UTC) + timedelta(minutes=30),
             "iat": datetime.now(UTC),
         }
-        token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+        token = jwt.encode(payload, settings.jwt_secret_key, algorithm=JWT_ALGORITHM)
 
         response = gateway_client.get(
             "/api/v1/users/me", headers={"Authorization": f"Bearer {token}"}

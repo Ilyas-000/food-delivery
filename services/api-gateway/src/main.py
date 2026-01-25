@@ -5,8 +5,10 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.config import settings
 from src.dependencies.redis_client import close_redis, init_redis
@@ -63,6 +65,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Redis connection closed")
 
 
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Handle uncaught exceptions with X-Request-ID for debugging."""
+    request_id = getattr(request.state, "request_id", "unknown")
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": {
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": "An unexpected error occurred",
+                "request_id": request_id,
+            }
+        },
+        headers={"X-Request-ID": request_id},
+    )
+
+
 def create_app() -> FastAPI:
     """Create FastAPI application."""
     app = FastAPI(
@@ -73,6 +91,9 @@ def create_app() -> FastAPI:
         docs_url="/docs" if settings.debug else None,
         redoc_url="/redoc" if settings.debug else None,
     )
+
+    # Exception handlers
+    app.add_exception_handler(Exception, global_exception_handler)
 
     # CORS middleware
     app.add_middleware(
@@ -90,6 +111,10 @@ def create_app() -> FastAPI:
         failure_threshold=settings.circuit_breaker_failure_threshold,
         recovery_timeout=settings.circuit_breaker_recovery_timeout,
     )
+    if settings.trust_proxy_headers:
+        trusted_hosts = settings.trusted_proxy_ips or "*"
+        # Add last so it runs first and sets request.client for downstream middleware.
+        app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_hosts)
 
     # Include routers
     app.include_router(health.router, tags=["Health"])

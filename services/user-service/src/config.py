@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     database_pool_size: int = 10
     database_max_overflow: int = 20
     database_echo: bool = False
+    test_database_url: str | None = None
 
     @property
     def database_url(self) -> str:

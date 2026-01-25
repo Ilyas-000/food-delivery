@@ -1,8 +1,4 @@
-"""JWT validation middleware and dependency.
-
-The API Gateway validates JWT tokens to avoid forwarding
-unauthorized requests to backend services.
-"""
+"""JWT validation middleware and dependency."""
 
 from collections.abc import Awaitable, Callable
 
@@ -14,6 +10,8 @@ from shared.common.jwt import decode_token
 
 from src.config import settings
 
+JWT_ALGORITHM = "HS256"
+
 security = HTTPBearer()
 logger = structlog.get_logger()
 
@@ -21,113 +19,84 @@ logger = structlog.get_logger()
 class JWTPayload:
     """Decoded JWT payload."""
 
-    def __init__(self, user_id: str, email: str | None, role: str) -> None:
-        """Initialize JWT payload.
-
-        Args:
-            user_id: User UUID
-            email: User email (optional)
-            role: User role (customer, courier, restaurant_owner, admin)
-        """
+    def __init__(self, user_id: str, role: str, email: str | None = None) -> None:
         self.user_id = user_id
         self.email = email
         self.role = role
 
 
-async def verify_jwt_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> JWTPayload:
-    """Validate JWT token and extract user info.
-
-    Args:
-        credentials: Bearer token from Authorization header
-
-    Returns:
-        JWTPayload: Decoded token payload
-
-    Raises:
-        HTTPException: If token is invalid or expired
-    """
-    token = credentials.credentials
-
+def _decode_access_token(token: str) -> JWTPayload | None:
+    """Decode and validate access token, returning payload or None."""
     try:
-        # Decode and verify token
         payload = decode_token(
             token=token,
             secret_key=settings.jwt_secret_key,
-            algorithms=[settings.jwt_algorithm],
+            algorithms=[JWT_ALGORITHM],
         )
 
-        # Extract claims
         user_id = payload.get("sub")
         email = payload.get("email")
         role = payload.get("role")
-
         token_type = payload.get("type")
 
-        if not user_id or not role:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={
-                    "error": {
-                        "code": "INVALID_TOKEN",
-                        "message": "Token is missing required claims",
-                    }
-                },
-            )
-        if token_type != "access":  # nosec B105
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={
-                    "error": {
-                        "code": "INVALID_TOKEN",
-                        "message": "Invalid token type",
-                    }
-                },
-            )
+        if user_id and role and token_type == "access":  # nosec B105
+            return JWTPayload(user_id=user_id, role=role, email=email)
 
-        return JWTPayload(user_id=user_id, email=email, role=role)
+        return None
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return None
 
+
+async def verify_jwt_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> JWTPayload:
+    """Validate JWT token and extract user info."""
+    token = credentials.credentials
+
+    try:
+        payload = decode_token(
+            token=token,
+            secret_key=settings.jwt_secret_key,
+            algorithms=[JWT_ALGORITHM],
+        )
     except jwt.ExpiredSignatureError as err:
         logger.warning("JWT token expired")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "error": {
-                    "code": "TOKEN_EXPIRED",
-                    "message": "Token has expired. Please refresh your token.",
-                }
-            },
+            detail={"error": {"code": "TOKEN_EXPIRED", "message": "Token has expired"}},
         ) from err
     except jwt.InvalidTokenError as err:
         logger.warning("Invalid JWT token", error=str(err))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "error": {
-                    "code": "INVALID_TOKEN",
-                    "message": "Invalid authentication token",
-                }
-            },
+            detail={"error": {"code": "INVALID_TOKEN", "message": "Invalid token"}},
         ) from err
 
+    user_id = payload.get("sub")
+    email = payload.get("email")
+    role = payload.get("role")
+    token_type = payload.get("type")
 
-def require_role(
-    *allowed_roles: str,
-) -> Callable[..., Awaitable[JWTPayload]]:
-    """Check if user has one of the allowed roles.
+    if not user_id or not role:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": {"code": "INVALID_TOKEN", "message": "Missing required claims"}},
+        )
 
-    Usage:
-        @app.get("/admin")
-        async def admin_endpoint(user: JWTPayload = Depends(require_role("admin"))):
-            ...
+    if token_type != "access":  # nosec B105
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": {"code": "INVALID_TOKEN", "message": "Invalid token type"}},
+        )
 
-    Args:
-        allowed_roles: Roles that are allowed to access the endpoint
+    if not email:
+        logger.info("JWT token missing email claim", user_id=user_id)
 
-    Returns:
-        Dependency function
-    """
+    return JWTPayload(user_id=user_id, role=role, email=email)
+
+
+def require_role(*allowed_roles: str) -> Callable[..., Awaitable[JWTPayload]]:
+    """Check if user has one of the allowed roles."""
 
     async def role_checker(user: JWTPayload = Depends(verify_jwt_token)) -> JWTPayload:
         if user.role not in allowed_roles:
@@ -136,7 +105,7 @@ def require_role(
                 detail={
                     "error": {
                         "code": "FORBIDDEN",
-                        "message": f"Access denied. Required roles: {', '.join(allowed_roles)}",
+                        "message": f"Required roles: {', '.join(allowed_roles)}",
                     }
                 },
             )
@@ -146,35 +115,9 @@ def require_role(
 
 
 def get_optional_user(request: Request) -> JWTPayload | None:
-    """Extract user from request if authenticated (optional).
-
-    This is used by rate limiter to get user info without requiring auth.
-
-    Args:
-        request: FastAPI request
-
-    Returns:
-        JWTPayload if token is valid, None otherwise
-    """
+    """Extract user from request if authenticated (optional)."""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         return None
 
-    token = auth_header[7:]  # Remove "Bearer " prefix
-
-    try:
-        payload = decode_token(
-            token=token,
-            secret_key=settings.jwt_secret_key,
-            algorithms=[settings.jwt_algorithm],
-        )
-        user_id = payload.get("sub")
-        email = payload.get("email")
-        role = payload.get("role")
-
-        if user_id and role and payload.get("type") == "access":  # nosec B105
-            return JWTPayload(user_id=user_id, email=email, role=role)
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
-        pass
-
-    return None
+    return _decode_access_token(auth_header[7:])

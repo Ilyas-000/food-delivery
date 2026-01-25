@@ -1,6 +1,5 @@
 """API Gateway Configuration."""
 
-from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,14 +25,8 @@ class Settings(BaseSettings):
     cors_methods: list[str] = ["*"]
     cors_headers: list[str] = ["*"]
 
-    # JWT (shared with User Service for validation, support both prefixed and unprefixed)
-    jwt_secret_key: str = Field(
-        validation_alias=AliasChoices("JWT_SECRET_KEY", "GATEWAY_JWT_SECRET_KEY")
-    )
-    jwt_algorithm: str = Field(
-        default="HS256",
-        validation_alias=AliasChoices("JWT_ALGORITHM", "GATEWAY_JWT_ALGORITHM"),
-    )
+    # JWT secret (MUST match User Service for token validation)
+    jwt_secret_key: str
 
     # Redis (for rate limiting)
     redis_host: str = "localhost"
@@ -57,15 +50,15 @@ class Settings(BaseSettings):
     # Rate Limiting Configuration
     rate_limit_enabled: bool = True
 
-    # Login rate limits
-    login_per_ip_minute: int = 10
+    # Login rate limits (softened for better UX)
+    login_per_ip_minute: int = 15  # was 10
     login_per_ip_hour: int = 100
-    login_per_account_minute: int = 5
+    login_per_account_minute: int = 8  # was 5
     login_per_account_hour: int = 20
-    login_per_ip_account_minute: int = 3
-    login_max_fails_count: int = 5
+    login_per_ip_account_minute: int = 5  # was 3
+    login_max_fails_count: int = 8  # was 5
     login_max_fails_window: int = 600  # 10 minutes
-    login_cooldown_duration: int = 900  # 15 minutes
+    login_cooldown_duration: int = 300  # 5 minutes (was 15)
 
     # Refresh rate limits
     refresh_per_jti_minute: int = 10
@@ -85,6 +78,10 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
     log_json: bool = True
+
+    # Proxy headers
+    trust_proxy_headers: bool = True
+    trusted_proxy_ips: str = ""
 
 
 settings = Settings()  # type: ignore[call-arg]

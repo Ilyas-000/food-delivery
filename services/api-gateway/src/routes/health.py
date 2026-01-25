@@ -2,7 +2,7 @@
 
 import httpx
 import structlog
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
 
 from src.config import settings
@@ -18,12 +18,12 @@ async def health_check() -> dict[str, str]:
     return {
         "status": "healthy",
         "service": "api-gateway",
-        "version": "1.0.0",
+        "version": settings.version,
     }
 
 
 @router.get("/ready", status_code=status.HTTP_200_OK)
-async def readiness_check() -> JSONResponse:
+async def readiness_check(request: Request) -> JSONResponse:
     """Readiness check - gateway and dependencies are ready.
 
     Checks:
@@ -37,24 +37,33 @@ async def readiness_check() -> JSONResponse:
     all_healthy = True
 
     # Check Redis
-    try:
-        redis = get_redis()
-        await redis.ping()
-        checks["redis"] = "healthy"
-    except Exception as e:
-        logger.error("Redis health check failed", error=str(e))
-        checks["redis"] = "unhealthy"
-        all_healthy = False
+    if settings.rate_limit_enabled:
+        try:
+            redis = get_redis()
+            await redis.ping()
+            checks["redis"] = "healthy"
+        except Exception as e:
+            logger.error("Redis health check failed", error=str(e))
+            checks["redis"] = "unhealthy"
+            all_healthy = False
+    else:
+        checks["redis"] = "disabled"
 
     # Check User Service
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(f"{settings.user_service_url}/health")
-            if response.status_code == 200:
-                checks["user_service"] = "healthy"
-            else:
-                checks["user_service"] = "unhealthy"
-                all_healthy = False
+        client = getattr(request.app.state, "http_client", None)
+        if client is None:
+            logger.warning("HTTP client not initialized; using temporary client")
+            async with httpx.AsyncClient(timeout=5.0) as temp_client:
+                response = await temp_client.get(f"{settings.user_service_url}/health")
+        else:
+            response = await client.get(f"{settings.user_service_url}/health", timeout=5.0)
+
+        if response.status_code == 200:
+            checks["user_service"] = "healthy"
+        else:
+            checks["user_service"] = "unhealthy"
+            all_healthy = False
     except Exception as e:
         logger.error("User Service health check failed", error=str(e))
         checks["user_service"] = "unhealthy"

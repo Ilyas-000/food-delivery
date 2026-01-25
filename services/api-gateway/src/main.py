@@ -4,6 +4,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 import structlog
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,6 +53,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         port=settings.port,
     )
 
+    # Initialize shared HTTP client for proxying
+    app.state.http_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(settings.proxy_timeout_default),
+        limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+    )
+    logger.info("HTTP client initialized")
+
     # Initialize Redis for rate limiting
     if settings.rate_limit_enabled:
         await init_redis()
@@ -61,6 +69,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # Shutdown
     logger.info("Shutting down API Gateway")
+    http_client = getattr(app.state, "http_client", None)
+    if http_client is not None:
+        await http_client.aclose()
+        logger.info("HTTP client closed")
     await close_redis()
     logger.info("Redis connection closed")
 
@@ -86,7 +98,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Food Delivery API Gateway",
         description="Single entry point for all microservices",
-        version="1.0.0",
+        version=settings.version,
         lifespan=lifespan,
         docs_url="/docs" if settings.debug else None,
         redoc_url="/redoc" if settings.debug else None,

@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     port: int = 8000
     environment: str = "development"
     debug: bool = True
+    version: str = "1.0.0"
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
@@ -33,6 +34,8 @@ class Settings(BaseSettings):
     redis_port: int = 6379
     redis_db: int = 1  # Different from User Service (db=0)
     redis_password: str | None = None
+    redis_connect_retries: int = 30
+    redis_connect_delay_seconds: float = 2.0
 
     # Service URLs (internal Docker network)
     user_service_url: str = "http://user-service:8001"
@@ -42,10 +45,14 @@ class Settings(BaseSettings):
     # payment_service_url: str = "http://payment-service:8004"
     # delivery_service_url: str = "http://delivery-service:8005"
 
+    # Proxy timeouts (seconds)
+    proxy_timeout_default: float = 30.0
+    proxy_timeout_auth: float = 15.0
+    proxy_timeout_user: float = 10.0
+
     # Circuit Breaker settings
     circuit_breaker_failure_threshold: int = 5
     circuit_breaker_recovery_timeout: float = 30.0
-    circuit_breaker_expected_exception: type[Exception] = Exception
 
     # Rate Limiting Configuration
     rate_limit_enabled: bool = True

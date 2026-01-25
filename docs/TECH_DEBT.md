@@ -4,6 +4,9 @@
 
 - Naming consistency: simplify and clarify naming (DTO/use_case, module names, route names).
 - API responses metadata: large inline `responses` blocks in routes should be simplified or moved.
+- Swagger: дублируются разделы auth/authentication в User Service (`/docs`).
+- Tests DB: разногласия по стратегии поднятия тестовой БД (auto-create/drop vs ручной жизненный цикл).
+- Redis close: mypy не знает про `aclose()` в redis.asyncio, сейчас есть временный type workaround.
 
 ---
 
@@ -69,3 +72,60 @@
 | 5 | remove_cooldown для admin | Pending (Phase 2) |
 | 6 | Error messages дублирование | ✅ Done |
 | 7 | Prometheus metrics | Pending (Phase 10) |
+
+
+## 🔧 Technical Debt - Proxy Routes (API Gateway)
+
+### 5. Нет retry логики при network errors
+**Проблема:**
+- При NetworkError сразу возвращается 502 Bad Gateway
+- Временные сбои сети не обрабатываются
+- Нет exponential backoff
+
+**Решение:**
+Добавить retry с tenacity (или полагаться на Circuit Breaker)
+
+**Note:** Circuit Breaker уже есть, возможно достаточно
+
+**Файлы:**
+- `services/api-gateway/src/routes/proxy.py`
+
+**Приоритет:** 🟡 Nice-to-have
+**Effort:** 1 час
+**Phase:** 2
+**Status:** 🟡 Pending (needs analysis with Circuit Breaker)
+
+---
+
+### Summary - Proxy Routes Issues
+
+| # | Issue | Priority | Effort | Phase |
+|---|-------|----------|--------|-------|
+| 5 | Нет retry логики | 🟡 Nice | 1 hr | 2 |
+
+**Phase 2 focus:** Item #5
+**Total recommended:** ~1 час (item 5)
+
+---
+
+## 🔧 Technical Debt - Resilience Strategy (Gateway)
+
+### 1. Ретраи + Circuit Breaker (аналитика и тюнинг)
+**Почему важно:**
+- Ретраи могут усиливать нагрузку при деградации сервиса
+- Circuit Breaker чувствителен к порогам и окнам наблюдения
+- Неправильная настройка может ухудшить восстановление
+
+**Что нужно определить:**
+- Порог срабатывания (ошибки %) и window
+- Совместимость с ретраями (какие ошибки/коды ретраить)
+- Backoff стратегия (exponential + jitter)
+- Где логически размещать (gateway-only или shared)
+- Влияние на SLA и p95/p99
+
+**Вывод:** отдельная аналитическая задача перед внедрением ретраев
+
+**Приоритет:** 🟠 Medium
+**Effort:** 2-4 часа
+**Phase:** 2
+**Status:** 🟡 Pending

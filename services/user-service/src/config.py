@@ -84,6 +84,7 @@ class Settings(BaseSettings):
 
     # Security
     password_bcrypt_rounds: int = 12
+    trust_gateway_headers: bool = False
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]

@@ -61,6 +61,7 @@ make test-cov
 
 ## Important Files
 
+- **`AGENTS_RULES.md`** - Mandatory code style and conventions for AI agents
 - `docs/API_CONVENTIONS.md`
 - `docs/ENGINEERING_CONVENTIONS.md`
 - `docs/TECH_DEBT.md`

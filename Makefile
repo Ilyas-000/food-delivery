@@ -135,6 +135,9 @@ test-user: ## Run tests for user service
 test-gateway: ## Run tests for API Gateway
 	@$(MAKE) test-service SERVICE=api-gateway
 
+test-restaurant: ## Run tests for restaurant service
+	@$(MAKE) test-service SERVICE=restaurant-service
+
 lint: ## Run ruff linter
 	@echo "$(BLUE)Running linter...$(NC)"
 	ruff check .
@@ -149,6 +152,7 @@ type-check: ## Run mypy type checker
 	@echo "$(BLUE)Running type checker...$(NC)"
 	MYPYPATH=shared/src:services/api-gateway mypy services/api-gateway/src
 	MYPYPATH=shared/src:services/user-service mypy services/user-service/src
+	MYPYPATH=shared/src:services/restaurant-service mypy services/restaurant-service/src
 	MYPYPATH=shared/src mypy shared/src
 
 pre-commit: ## Run all pre-commit hooks
@@ -174,6 +178,10 @@ dev-user: ## Run User Service locally
 dev-gateway: ## Run API Gateway locally
 	@echo "$(BLUE)Starting API Gateway...$(NC)"
 	cd services/api-gateway && uvicorn src.main:app --reload --port 8000
+
+dev-restaurant: ## Run Restaurant Service locally
+	@echo "$(BLUE)Starting Restaurant Service...$(NC)"
+	cd services/restaurant-service && uvicorn src.main:app --reload --port 8002
 
 ## Kafka
 

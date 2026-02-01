@@ -18,6 +18,8 @@ import structlog
 
 from src.config import settings
 from src.infrastructure.database import base
+from src.interface.api.exception_handlers import register_exception_handlers
+from src.interface.api.v1.routes import menu_items, restaurants
 
 # Configure structlog (unified logging across all modules)
 structlog.configure(
@@ -121,11 +123,11 @@ def create_app() -> FastAPI:
     )
 
     # === EXCEPTION HANDLERS ===
-    # TODO: Register domain exception handlers when implemented
+    register_exception_handlers(app)
 
     # === ROUTES ===
-    # TODO: Include restaurant routes when implemented
-    # TODO: Include menu-items routes when implemented
+    app.include_router(restaurants.router, prefix=settings.api_prefix)
+    app.include_router(menu_items.router, prefix=settings.api_prefix)
 
     # Health check endpoint (для Kubernetes/Docker health checks)
     @app.get("/health", tags=["health"])

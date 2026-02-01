@@ -12,17 +12,3 @@ from src.domain.exceptions.restaurant import (
     RestaurantNotFoundError,
     RestaurantNotOwnedByUserError,
 )
-
-__all__ = [
-    # Base
-    "DomainError",
-    # Restaurant
-    "InvalidRestaurantDataError",
-    "RestaurantAlreadyExistsError",
-    "RestaurantNotFoundError",
-    "RestaurantNotOwnedByUserError",
-    # Menu Item
-    "InvalidMenuItemDataError",
-    "MenuItemNotFoundError",
-    "MenuItemNotInRestaurantError",
-]

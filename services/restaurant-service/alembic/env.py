@@ -31,9 +31,8 @@ from src.infrastructure.database.base import Base  # noqa: E402
 
 # CRITICAL: Import all models here so Alembic can detect them!
 # If you don't import models, Alembic won't generate migrations for them
-# TODO: Import models when they are implemented
-# from src.infrastructure.database.models.restaurant_model import RestaurantModel  # noqa: ERA001
-# from src.infrastructure.database.models.menu_item_model import MenuItemModel  # noqa: ERA001
+from src.infrastructure.database.models.menu_item_model import MenuItemModel  # noqa: E402, F401
+from src.infrastructure.database.models.restaurant_model import RestaurantModel  # noqa: E402, F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

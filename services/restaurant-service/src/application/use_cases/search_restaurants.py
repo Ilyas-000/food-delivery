@@ -4,8 +4,8 @@ SearchRestaurants Use Case.
 Searches for restaurants based on filters.
 """
 
-from src.application.dto import RestaurantResponseDTO, SearchRestaurantsDTO
-from src.application.interfaces import IRestaurantRepository
+from src.application.dto.restaurant_dto import RestaurantResponseDTO, SearchRestaurantsDTO
+from src.application.interfaces.restaurant_repository import IRestaurantRepository
 
 
 class SearchRestaurantsUseCase:

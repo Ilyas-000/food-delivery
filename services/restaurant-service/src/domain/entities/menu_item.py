@@ -8,8 +8,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from src.domain.exceptions import InvalidMenuItemDataError
-from src.domain.value_objects import Availability, Category, Price
+from src.domain.exceptions.menu_item import InvalidMenuItemDataError
+from src.domain.value_objects.availability import Availability
+from src.domain.value_objects.category import Category
+from src.domain.value_objects.price import Price
 
 
 def _utc_now() -> datetime:

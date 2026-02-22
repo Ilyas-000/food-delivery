@@ -6,9 +6,9 @@ Retrieves a restaurant by ID.
 
 from uuid import UUID
 
-from src.application.dto import RestaurantResponseDTO
-from src.application.interfaces import IRestaurantRepository
-from src.domain.exceptions import RestaurantNotFoundError
+from src.application.dto.restaurant_dto import RestaurantResponseDTO
+from src.application.interfaces.restaurant_repository import IRestaurantRepository
+from src.domain.exceptions.restaurant import RestaurantNotFoundError
 
 
 class GetRestaurantUseCase:

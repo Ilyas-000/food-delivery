@@ -36,6 +36,7 @@ src/
 
 ### Menu Management (Owner only)
 - `POST /api/v1/restaurants/{id}/menu-items` - Add menu item
+- `GET /api/v1/restaurants/{id}/menu-items/{item_id}` - Get menu item
 - `PUT /api/v1/restaurants/{id}/menu-items/{item_id}` - Update menu item
 - `PATCH /api/v1/restaurants/{id}/menu-items/{item_id}/availability` - Toggle availability
 - `DELETE /api/v1/restaurants/{id}/menu-items/{item_id}` - Delete menu item
@@ -47,9 +48,13 @@ Environment variables (prefix: `RESTAURANT_SERVICE_`):
 - `RESTAURANT_SERVICE_DB_NAME` - Database name
 - `RESTAURANT_SERVICE_DB_USER` - Database user
 - `RESTAURANT_SERVICE_DB_PASSWORD` - Database password
+- `RESTAURANT_SERVICE_KAFKA_ENABLED` - Enable Kafka event publishing (`true/false`)
 - `RESTAURANT_SERVICE_REDIS_HOST` - Redis host (for caching)
 - `RESTAURANT_SERVICE_REDIS_PORT` - Redis port
 - `RESTAURANT_SERVICE_REDIS_DB` - Redis database number
+
+Shared Kafka settings:
+- `KAFKA_BOOTSTRAP_SERVERS` - Kafka broker endpoints (for example, `localhost:9093`)
 
 ## Development
 

@@ -8,7 +8,8 @@ from sqlalchemy import DateTime, Enum, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.domain.value_objects import Availability, Category
+from src.domain.value_objects.availability import Availability
+from src.domain.value_objects.category import Category
 from src.infrastructure.database.base import Base
 
 

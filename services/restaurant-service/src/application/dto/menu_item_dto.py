@@ -11,8 +11,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from src.domain.entities import MenuItem
-from src.domain.value_objects import Availability, Category
+from src.domain.entities.menu_item import MenuItem
+from src.domain.value_objects.availability import Availability
+from src.domain.value_objects.category import Category
 
 
 class CreateMenuItemDTO(BaseModel):
@@ -34,6 +35,12 @@ class UpdateMenuItemDTO(BaseModel):
     price_amount: Decimal | None = Field(default=None, ge=0)
     category: Category | None = None
     image_url: str | None = Field(default=None, max_length=500)
+
+
+class UpdateMenuItemAvailabilityDTO(BaseModel):
+    """DTO for updating menu item availability."""
+
+    availability: Availability
 
 
 class MenuItemResponseDTO(BaseModel):

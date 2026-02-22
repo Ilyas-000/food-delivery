@@ -23,9 +23,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
-from src.application.interfaces import IMenuItemRepository
-from src.domain.entities import MenuItem
-from src.domain.value_objects import Price
+from src.application.interfaces.menu_item_repository import IMenuItemRepository
+from src.domain.entities.menu_item import MenuItem
+from src.domain.value_objects.category import Category
+from src.domain.value_objects.price import Price
 from src.infrastructure.database.models.menu_item_model import MenuItemModel
 
 logger = structlog.get_logger(__name__)
@@ -140,7 +141,11 @@ class MenuItemRepository(IMenuItemRepository):
         # Model → Entity
         return self._model_to_entity(menu_item_model)
 
-    async def get_by_restaurant_id(self, restaurant_id: UUID) -> list[MenuItem]:
+    async def get_by_restaurant_id(
+        self,
+        restaurant_id: UUID,
+        category: Category | None = None,
+    ) -> list[MenuItem]:
         """
         Get all menu items for a restaurant.
 
@@ -148,6 +153,7 @@ class MenuItemRepository(IMenuItemRepository):
 
         Args:
             restaurant_id: Restaurant UUID
+            category: Optional category filter
 
         Returns:
             list[MenuItem]: List of menu item entities
@@ -155,6 +161,8 @@ class MenuItemRepository(IMenuItemRepository):
         logger.debug("repository.get_menu_items_by_restaurant", restaurant_id=str(restaurant_id))
 
         stmt = select(MenuItemModel).where(MenuItemModel.restaurant_id == restaurant_id)
+        if category is not None:
+            stmt = stmt.where(MenuItemModel.category == category)
         result = await self._session.execute(stmt)
         menu_item_models = result.scalars().all()
 

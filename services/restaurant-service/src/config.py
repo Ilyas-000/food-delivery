@@ -31,6 +31,14 @@ class PostgresSettings(BaseSettings):
     password: str = "postgres"
 
 
+class KafkaSettings(BaseSettings):
+    """Kafka settings shared across services."""
+
+    model_config = SettingsConfigDict(env_prefix="KAFKA_", **_BASE_ENV_CONFIG)
+
+    bootstrap_servers: str = "localhost:9093"
+
+
 class Settings(BaseSettings):
     """Restaurant Service Settings."""
 
@@ -98,6 +106,14 @@ class Settings(BaseSettings):
 
     # Authorization
     trust_gateway_headers: bool = True  # Trust X-User-ID from API Gateway
+
+    # Kafka
+    kafka_enabled: bool = False  # Enable event publishing
+
+    @cached_property
+    def kafka(self) -> KafkaSettings:
+        """Lazy-load shared Kafka settings."""
+        return KafkaSettings()
 
 
 @lru_cache

@@ -4,11 +4,11 @@ CreateRestaurant Use Case.
 Creates a new restaurant.
 """
 
-from src.application.dto import CreateRestaurantDTO, RestaurantResponseDTO
-from src.application.interfaces import IRestaurantRepository
-from src.domain.entities import Restaurant
-from src.domain.exceptions import RestaurantAlreadyExistsError
-from src.domain.value_objects import Address
+from src.application.dto.restaurant_dto import CreateRestaurantDTO, RestaurantResponseDTO
+from src.application.interfaces.restaurant_repository import IRestaurantRepository
+from src.domain.entities.restaurant import Restaurant
+from src.domain.exceptions.restaurant import RestaurantAlreadyExistsError
+from src.domain.value_objects.address import Address
 
 
 class CreateRestaurantUseCase:

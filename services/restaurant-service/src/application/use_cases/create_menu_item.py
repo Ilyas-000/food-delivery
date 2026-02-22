@@ -4,11 +4,12 @@ CreateMenuItem Use Case.
 Creates a new menu item for a restaurant.
 """
 
-from src.application.dto import CreateMenuItemDTO, MenuItemResponseDTO
-from src.application.interfaces import IMenuItemRepository, IRestaurantRepository
-from src.domain.entities import MenuItem
-from src.domain.exceptions import RestaurantNotFoundError
-from src.domain.value_objects import Price
+from src.application.dto.menu_item_dto import CreateMenuItemDTO, MenuItemResponseDTO
+from src.application.interfaces.menu_item_repository import IMenuItemRepository
+from src.application.interfaces.restaurant_repository import IRestaurantRepository
+from src.domain.entities.menu_item import MenuItem
+from src.domain.exceptions.restaurant import RestaurantNotFoundError
+from src.domain.value_objects.price import Price
 
 
 class CreateMenuItemUseCase:

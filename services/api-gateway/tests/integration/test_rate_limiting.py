@@ -17,8 +17,8 @@ class TestRateLimiting:
         from src.config import settings
 
         limit = 3
-        monkeypatch.setattr(settings, "login_per_ip_minute", limit)
-        monkeypatch.setattr(settings, "login_per_ip_hour", 1000)
+        monkeypatch.setattr(settings, "login_per_ip_minute", 1000)
+        monkeypatch.setattr(settings, "login_per_ip_hour", limit)
         monkeypatch.setattr(settings, "login_per_account_minute", 1000)
         monkeypatch.setattr(settings, "login_per_account_hour", 1000)
         monkeypatch.setattr(settings, "login_per_ip_account_minute", 1000)
@@ -57,8 +57,8 @@ class TestRateLimiting:
         limit = 3
         monkeypatch.setattr(settings, "login_per_ip_minute", 1000)
         monkeypatch.setattr(settings, "login_per_ip_hour", 1000)
-        monkeypatch.setattr(settings, "login_per_account_minute", limit)
-        monkeypatch.setattr(settings, "login_per_account_hour", 1000)
+        monkeypatch.setattr(settings, "login_per_account_minute", 1000)
+        monkeypatch.setattr(settings, "login_per_account_hour", limit)
         monkeypatch.setattr(settings, "login_per_ip_account_minute", 1000)
         monkeypatch.setattr(settings, "login_max_fails_count", 1000)
 
@@ -130,8 +130,8 @@ class TestRateLimiting:
         from src.config import settings
 
         limit = 3
-        monkeypatch.setattr(settings, "refresh_per_ip_minute", limit)
-        monkeypatch.setattr(settings, "refresh_per_ip_hour", 1000)
+        monkeypatch.setattr(settings, "refresh_per_ip_minute", 1000)
+        monkeypatch.setattr(settings, "refresh_per_ip_hour", limit)
         monkeypatch.setattr(settings, "refresh_per_jti_minute", 1000)
         monkeypatch.setattr(settings, "refresh_per_jti_hour", 1000)
         monkeypatch.setattr(settings, "refresh_per_user_minute", 1000)
@@ -164,7 +164,8 @@ class TestRateLimiting:
         from src.config import settings
 
         limit = 3
-        monkeypatch.setattr(settings, "auth_global_per_ip_minute", limit)
+        monkeypatch.setattr(settings, "auth_global_per_ip_minute", 1000)
+        monkeypatch.setattr(settings, "auth_global_per_ip_hour", limit)
         monkeypatch.setattr(settings, "auth_global_burst", 0)
         monkeypatch.setattr(settings, "login_per_ip_minute", 1000)
         monkeypatch.setattr(settings, "login_per_ip_hour", 1000)

@@ -31,51 +31,58 @@ def upgrade() -> None:
         "INDIAN",
         "FRENCH",
         "THAI",
-        "GREEK",
-        "SPANISH",
+        "AMERICAN",
         "KOREAN",
         "VIETNAMESE",
-        "AMERICAN",
+        "MEDITERRANEAN",
+        "MIDDLE_EASTERN",
+        "GREEK",
+        "SPANISH",
         "TURKISH",
-        "LEBANESE",
+        "RUSSIAN",
         "BRAZILIAN",
-        "GEORGIAN",
-        "UZBEK",
-        "PIZZA",
-        "BURGER",
-        "SUSHI",
-        "BBQ",
-        "SEAFOOD",
+        "FUSION",
         "VEGETARIAN",
         "VEGAN",
-        "HEALTHY",
+        "SEAFOOD",
+        "STEAKHOUSE",
         "FAST_FOOD",
+        "CAFE",
+        "BAKERY",
         "DESSERTS",
-        "COFFEE",
+        "OTHER",
         name="cuisine_enum",
+        create_type=False,
     )
     cuisine_enum.create(op.get_bind(), checkfirst=True)
 
     # Create menu_category_enum type
     category_enum = postgresql.ENUM(
         "APPETIZER",
-        "SOUP",
         "SALAD",
+        "SOUP",
         "MAIN_COURSE",
         "SIDE_DISH",
         "DESSERT",
         "BEVERAGE",
         "ALCOHOL",
+        "BREAKFAST",
+        "LUNCH",
+        "DINNER",
+        "SNACK",
+        "SPECIAL",
         name="menu_category_enum",
+        create_type=False,
     )
     category_enum.create(op.get_bind(), checkfirst=True)
 
     # Create menu_availability_enum type
     availability_enum = postgresql.ENUM(
         "AVAILABLE",
-        "UNAVAILABLE",
+        "OUT_OF_STOCK",
         "DISCONTINUED",
         name="menu_availability_enum",
+        create_type=False,
     )
     availability_enum.create(op.get_bind(), checkfirst=True)
 

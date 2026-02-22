@@ -43,7 +43,7 @@ class InMemoryRefreshTokenRepository(IRefreshTokenRepository):
         self._active.discard(jti)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 async def async_engine() -> AsyncIterator[AsyncEngine]:
     test_db_url = settings.test_database_url
     if not test_db_url:

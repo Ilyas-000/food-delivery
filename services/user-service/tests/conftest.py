@@ -1,10 +1,1 @@
-import asyncio
-
-import pytest
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> asyncio.AbstractEventLoop:
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+"""Pytest configuration for user-service tests."""

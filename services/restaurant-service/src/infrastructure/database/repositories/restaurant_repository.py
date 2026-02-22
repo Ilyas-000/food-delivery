@@ -16,6 +16,7 @@ Key responsibilities:
 4. Query optimization
 """
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -24,10 +25,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 import structlog
 
-from src.application.interfaces import IRestaurantRepository
-from src.domain.entities import Restaurant
-from src.domain.exceptions import RestaurantAlreadyExistsError
-from src.domain.value_objects import Address, Cuisine
+from src.application.interfaces.restaurant_repository import IRestaurantRepository
+from src.domain.entities.restaurant import Restaurant
+from src.domain.exceptions.restaurant import RestaurantAlreadyExistsError
+from src.domain.value_objects.address import Address
+from src.domain.value_objects.cuisine import Cuisine
 from src.infrastructure.database.models.restaurant_model import RestaurantModel
 
 logger = structlog.get_logger(__name__)
@@ -318,9 +320,7 @@ class RestaurantRepository(IRestaurantRepository):
 
     async def delete(self, restaurant_id: UUID) -> None:
         """
-        Delete restaurant (hard delete).
-
-        Note: Recommended to use soft delete (restaurant.deactivate() + update()).
+        Delete restaurant (soft delete, sets is_active=False).
 
         Args:
             restaurant_id: Restaurant UUID
@@ -340,7 +340,8 @@ class RestaurantRepository(IRestaurantRepository):
             raise ValueError(f"Restaurant with id {restaurant_id} not found")
 
         try:
-            await self._session.delete(restaurant_model)
+            restaurant_model.is_active = False
+            restaurant_model.updated_at = datetime.now(UTC)
             await self._session.commit()
 
             logger.info("repository.delete_restaurant.success", restaurant_id=str(restaurant_id))

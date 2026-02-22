@@ -9,6 +9,8 @@ GREEN := \033[0;32m
 YELLOW := \033[0;33m
 RED := \033[0;31m
 NC := \033[0m # No Color
+COMPOSE := docker-compose --env-file .env -f infrastructure/docker-compose.yml
+COMPOSE_TEST := $(COMPOSE) --profile test
 
 help: ## Show this help message
 	@echo "$(BLUE)Food Delivery - Available Commands$(NC)"
@@ -35,13 +37,13 @@ setup-dev: ## Bootstrap dev machine (env, deps, dirs)
 
 up: ## Start all services (docker-compose up -d)
 	@echo "$(BLUE)Starting all services...$(NC)"
-	docker-compose --env-file .env -f infrastructure/docker-compose.yml up -d
+	$(COMPOSE) up -d
 	@echo "$(GREEN)All services started!$(NC)"
 	@$(MAKE) health
 
 down: ## Stop all services (docker-compose down)
 	@echo "$(YELLOW)Stopping all services...$(NC)"
-	docker-compose --env-file .env -f infrastructure/docker-compose.yml down
+	$(COMPOSE) down
 
 restart: ## Restart all services
 	@$(MAKE) down
@@ -50,9 +52,9 @@ restart: ## Restart all services
 logs: ## Show logs from all services (use SERVICE=name for specific service)
 	@echo "$(BLUE)Showing logs...$(NC)"
 ifdef SERVICE
-	docker-compose --env-file .env -f infrastructure/docker-compose.yml logs -f $(SERVICE)
+	$(COMPOSE) logs -f $(SERVICE)
 else
-	docker-compose --env-file .env -f infrastructure/docker-compose.yml logs -f
+	$(COMPOSE) logs -f
 endif
 
 health: ## Check health of all services
@@ -61,7 +63,7 @@ health: ## Check health of all services
 
 clean: ## Remove all containers, volumes, and build artifacts
 	@echo "$(RED)Cleaning up...$(NC)"
-	docker-compose --env-file .env -f infrastructure/docker-compose.yml down -v
+	$(COMPOSE) down -v
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
@@ -75,7 +77,7 @@ clean-image: clean-images ## Alias for clean-images
 
 clean-images: ## Remove all containers, volumes, images, and build artifacts
 	@echo "$(RED)Cleaning up (including images)...$(NC)"
-	docker-compose --env-file .env -f infrastructure/docker-compose.yml down -v --rmi local
+	$(COMPOSE) down -v --rmi local
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
@@ -87,44 +89,104 @@ clean-images: ## Remove all containers, volumes, images, and build artifacts
 
 ## Testing & Quality
 
+wait-http: ## Wait for HTTP endpoint (use URL=http://...)
+ifndef URL
+	@echo "$(RED)Error: Please specify URL (e.g. URL=http://localhost:8001/health)$(NC)"
+	@exit 1
+endif
+	@for i in $$(seq 1 90); do \
+		if curl -fsS "$(URL)" >/dev/null 2>&1; then \
+			exit 0; \
+		fi; \
+		sleep 1; \
+	done; \
+	echo "$(RED)Timeout waiting for $(URL)$(NC)"; \
+	exit 1
+
 test: ## Run all tests
-	@echo "$(BLUE)Running tests...$(NC)"
-	@if rg --files -g 'test_*.py' tests >/dev/null 2>&1; then \
-		pytest; \
-	else \
-		echo "$(YELLOW)No root tests found in ./tests; skipping.$(NC)"; \
-	fi
+	@echo "$(BLUE)Running tests in Docker...$(NC)"
+	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
+		if find tests -type f -name "test_*.py" 2>/dev/null | grep -q .; then \
+			/opt/venv/bin/pytest; \
+		else \
+			echo "No root tests found in ./tests; skipping."; \
+		fi'
 
 test-all: ## Run repo tests and all service tests
-	@$(MAKE) test
-	@for svc in services/*; do \
-		if [ -d "$$svc" ]; then \
-			echo "$(BLUE)Running tests in $$svc...$(NC)"; \
-			(cd "$$svc" && pytest -c pyproject.toml); \
+	@echo "$(BLUE)Running all tests in Docker...$(NC)"
+	@$(COMPOSE) up -d postgres redis user-service
+	@$(MAKE) wait-http URL=http://localhost:8001/health
+	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
+		if find tests -type f -name "test_*.py" 2>/dev/null | grep -q .; then \
+			echo "Running tests..."; \
+			/opt/venv/bin/pytest; \
+		else \
+			echo "No root tests found in ./tests; skipping."; \
 		fi; \
-	done
+		for svc in services/*; do \
+			if [ -d "$$svc" ]; then \
+				echo "Running tests in $$svc..."; \
+				(cd "$$svc" && /opt/venv/bin/pytest -c pyproject.toml); \
+			fi; \
+		done'
 
 test-unit: ## Run unit tests only
-	@echo "$(BLUE)Running unit tests...$(NC)"
-	pytest -m unit
+	@echo "$(BLUE)Running unit tests in Docker...$(NC)"
+	@$(COMPOSE_TEST) run --rm test-runner bash -lc 'set -e; \
+		for svc in services/*; do \
+			if [ -d "$$svc" ]; then \
+				echo "Running unit tests in $$svc..."; \
+				(cd "$$svc" && /opt/venv/bin/pytest -c pyproject.toml -m unit); \
+			fi; \
+		done'
 
 test-integration: ## Run integration tests only
-	@echo "$(BLUE)Running integration tests...$(NC)"
-	pytest -m integration
+	@echo "$(BLUE)Running integration tests in Docker...$(NC)"
+	@$(COMPOSE_TEST) run --rm test-runner bash -lc 'set -e; \
+		for svc in services/*; do \
+			if [ -d "$$svc" ]; then \
+				echo "Running integration tests in $$svc..."; \
+				(cd "$$svc" && /opt/venv/bin/pytest -c pyproject.toml -m integration); \
+			fi; \
+		done'
 
 test-e2e: ## Run end-to-end tests only
-	@echo "$(BLUE)Running E2E tests...$(NC)"
-	pytest -m e2e
+	@echo "$(BLUE)Running E2E tests in Docker...$(NC)"
+	@$(COMPOSE_TEST) run --rm test-runner bash -lc 'set -e; \
+		for svc in services/*; do \
+			if [ -d "$$svc" ]; then \
+				echo "Running E2E tests in $$svc..."; \
+				(cd "$$svc" && /opt/venv/bin/pytest -c pyproject.toml -m e2e); \
+			fi; \
+		done'
 
 test-cov: ## Run tests with coverage report
-	@echo "$(BLUE)Running tests with coverage...$(NC)"
-	pytest --cov --cov-report=html --cov-report=term
-	@echo "$(GREEN)Coverage report generated in htmlcov/index.html$(NC)"
+	@echo "$(BLUE)Running tests with coverage in Docker...$(NC)"
+	@$(COMPOSE_TEST) run --rm test-runner bash -lc 'set -e; \
+		for svc in services/*; do \
+			if [ -d "$$svc" ]; then \
+				echo "Running coverage in $$svc..."; \
+				(cd "$$svc" && /opt/venv/bin/pytest -c pyproject.toml); \
+			fi; \
+		done'
 
 test-service: ## Run tests for a specific service (SERVICE=name)
-	@echo "$(BLUE)Running service tests...$(NC)"
+	@echo "$(BLUE)Running service tests in Docker...$(NC)"
 ifdef SERVICE
-	cd services/$(SERVICE) && pytest -c pyproject.toml
+	@case "$(SERVICE)" in \
+		api-gateway) \
+			$(COMPOSE) up -d postgres redis user-service; \
+			$(MAKE) wait-http URL=http://localhost:8001/health; \
+			;; \
+		user-service|restaurant-service) \
+			$(COMPOSE) up -d postgres redis; \
+			;; \
+		*) \
+			echo "$(RED)Error: Unknown service '$(SERVICE)'$(NC)"; \
+			exit 1; \
+			;; \
+	esac
+	$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; cd services/$(SERVICE) && /opt/venv/bin/pytest -c pyproject.toml'
 else
 	@echo "$(RED)Error: Please specify SERVICE=name (e.g. SERVICE=user-service)$(NC)"
 endif
@@ -217,4 +279,4 @@ stats: ## Show container stats
 	docker stats
 
 ps: ## Show running containers
-	docker-compose --env-file .env -f infrastructure/docker-compose.yml ps
+	$(COMPOSE) ps

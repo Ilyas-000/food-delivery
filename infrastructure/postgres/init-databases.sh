@@ -10,9 +10,17 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
     SELECT 'CREATE DATABASE ${USER_SERVICE_DB_NAME}'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${USER_SERVICE_DB_NAME}')\gexec
 
+    -- User Service (tests)
+    SELECT 'CREATE DATABASE ${USER_SERVICE_TEST_DB_NAME:-user_service_test_db}'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${USER_SERVICE_TEST_DB_NAME:-user_service_test_db}')\gexec
+
     -- Restaurant Service
     SELECT 'CREATE DATABASE ${RESTAURANT_SERVICE_DB_NAME}'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${RESTAURANT_SERVICE_DB_NAME}')\gexec
+
+    -- Restaurant Service (tests)
+    SELECT 'CREATE DATABASE ${RESTAURANT_SERVICE_TEST_DB_NAME:-restaurant_service_test_db}'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${RESTAURANT_SERVICE_TEST_DB_NAME:-restaurant_service_test_db}')\gexec
 
     -- Order Service
     SELECT 'CREATE DATABASE ${ORDER_SERVICE_DB_NAME}'
@@ -90,5 +98,15 @@ for service in "${services[@]}"; do
     create_role_and_grants "${db_name}" "${db_user}" "${db_password}"
   fi
 done
+
+# Integration tests should use isolated databases to avoid mutating runtime data.
+create_role_and_grants \
+  "${USER_SERVICE_TEST_DB_NAME:-user_service_test_db}" \
+  "${USER_SERVICE_DB_USER:-}" \
+  "${USER_SERVICE_DB_PASSWORD:-}"
+create_role_and_grants \
+  "${RESTAURANT_SERVICE_TEST_DB_NAME:-restaurant_service_test_db}" \
+  "${RESTAURANT_SERVICE_DB_USER:-}" \
+  "${RESTAURANT_SERVICE_DB_PASSWORD:-}"
 
 echo "Database initialization complete."

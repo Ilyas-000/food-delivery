@@ -124,8 +124,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_healthy
     ports:
       - "8001:8001"
     environment:
@@ -156,7 +154,7 @@ services:
       USER_SERVICE_JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${USER_SERVICE_JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
 
       # Security
-      USER_SERVICE_PASSWORD_BCRYPT_ROUNDS: 12
+      USER_SERVICE_PASSWORD_BCRYPT_ROUNDS: ${USER_SERVICE_BCRYPT_ROUNDS_DOCKER:-4}
 
       # Redis Configuration
       USER_SERVICE_REDIS_HOST: redis
@@ -170,8 +168,8 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
-      timeout: 10s
-      retries: 3
+      timeout: 30s
+      retries: 5
       start_period: 40s
 
   restaurant-service:
@@ -184,8 +182,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      kafka:
         condition: service_healthy
     ports:
       - "8002:8002"
@@ -299,6 +295,29 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  test-runner:
+    profiles: ["test"]
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/test-runner.Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    working_dir: /workspace
+    environment:
+      USER_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${USER_SERVICE_DB_USER:-user_service_user}:${USER_SERVICE_DB_PASSWORD:-user_service_password_change_me}@postgres:5432/${USER_SERVICE_TEST_DB_NAME:-user_service_test_db}
+      RESTAURANT_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${RESTAURANT_SERVICE_DB_USER:-restaurant_service_user}:${RESTAURANT_SERVICE_DB_PASSWORD:-restaurant_service_password_change_me}@postgres:5432/${RESTAURANT_SERVICE_TEST_DB_NAME:-restaurant_service_test_db}
+      GATEWAY_USER_SERVICE_URL: http://user-service:8001
+      GATEWAY_REDIS_HOST: redis
+      GATEWAY_REDIS_PORT: 6379
+      GATEWAY_REDIS_DB: 15
+    volumes:
+      - ..:/workspace
 
 volumes:
   postgres_data:

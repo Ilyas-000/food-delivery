@@ -8,8 +8,8 @@ Infrastructure layer implements this interface.
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from src.domain.entities import Restaurant
-from src.domain.value_objects import Cuisine
+from src.domain.entities.restaurant import Restaurant
+from src.domain.value_objects.cuisine import Cuisine
 
 
 class IRestaurantRepository(ABC):

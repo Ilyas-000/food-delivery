@@ -8,7 +8,7 @@ from sqlalchemy import Boolean, DateTime, Enum, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.domain.value_objects import Cuisine
+from src.domain.value_objects.cuisine import Cuisine
 from src.infrastructure.database.base import Base
 
 

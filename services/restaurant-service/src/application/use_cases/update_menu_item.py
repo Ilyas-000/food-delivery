@@ -6,10 +6,10 @@ Updates menu item information.
 
 from uuid import UUID
 
-from src.application.dto import MenuItemResponseDTO, UpdateMenuItemDTO
-from src.application.interfaces import IMenuItemRepository
-from src.domain.exceptions import MenuItemNotFoundError
-from src.domain.value_objects import Price
+from src.application.dto.menu_item_dto import MenuItemResponseDTO, UpdateMenuItemDTO
+from src.application.interfaces.menu_item_repository import IMenuItemRepository
+from src.domain.exceptions.menu_item import MenuItemNotFoundError, MenuItemNotInRestaurantError
+from src.domain.value_objects.price import Price
 
 
 class UpdateMenuItemUseCase:
@@ -34,13 +34,19 @@ class UpdateMenuItemUseCase:
         """
         self._menu_item_repository = menu_item_repository
 
-    async def execute(self, menu_item_id: UUID, dto: UpdateMenuItemDTO) -> MenuItemResponseDTO:
+    async def execute(
+        self,
+        menu_item_id: UUID,
+        dto: UpdateMenuItemDTO,
+        restaurant_id: UUID | None = None,
+    ) -> MenuItemResponseDTO:
         """
         Execute use case.
 
         Args:
             menu_item_id: ID of the menu item to update
             dto: Update data
+            restaurant_id: Optional restaurant scope check
 
         Returns:
             MenuItemResponseDTO: Updated menu item
@@ -55,6 +61,9 @@ class UpdateMenuItemUseCase:
 
         if menu_item is None:
             raise MenuItemNotFoundError(str(menu_item_id))
+
+        if restaurant_id is not None and menu_item.restaurant_id != restaurant_id:
+            raise MenuItemNotInRestaurantError(str(menu_item_id), str(restaurant_id))
 
         # 2. Create new Price if price_amount is provided
         new_price = None

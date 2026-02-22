@@ -11,8 +11,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from src.domain.entities import Restaurant
-from src.domain.value_objects import Cuisine
+from src.domain.entities.restaurant import Restaurant
+from src.domain.value_objects.cuisine import Cuisine
 
 
 class CreateRestaurantDTO(BaseModel):

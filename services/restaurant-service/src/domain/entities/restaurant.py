@@ -9,8 +9,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from src.domain.exceptions import InvalidRestaurantDataError
-from src.domain.value_objects import Address, Cuisine
+from src.domain.exceptions.restaurant import InvalidRestaurantDataError
+from src.domain.value_objects.address import Address
+from src.domain.value_objects.cuisine import Cuisine
 
 
 def _utc_now() -> datetime:

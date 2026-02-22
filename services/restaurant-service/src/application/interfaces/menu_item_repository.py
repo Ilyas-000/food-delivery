@@ -8,8 +8,8 @@ Infrastructure layer implements this interface.
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from src.domain.entities import MenuItem
-from src.domain.value_objects import Category
+from src.domain.entities.menu_item import MenuItem
+from src.domain.value_objects.category import Category
 
 
 class IMenuItemRepository(ABC):

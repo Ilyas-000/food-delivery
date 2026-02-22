@@ -18,8 +18,13 @@ import structlog
 
 from src.config import settings
 from src.infrastructure.database import base
+from src.infrastructure.events.publisher import (
+    init_event_publisher,
+    is_event_publisher_ready,
+    shutdown_event_publisher,
+)
 from src.interface.api.exception_handlers import register_exception_handlers
-from src.interface.api.v1.routes import menu_items, restaurants
+from src.interface.api.v1.routes import restaurants
 
 # Configure structlog (unified logging across all modules)
 structlog.configure(
@@ -68,7 +73,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Database connection pool initialized")
 
     # TODO: Инициализация Redis client для кеширования
-    # TODO: Инициализация Kafka producer для событий
+    await init_event_publisher()
 
     logger.info(f"{settings.service_name} started successfully")
 
@@ -83,7 +88,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         base.AsyncSessionLocal = None
 
     # TODO: Закрытие Redis client
-    # TODO: Закрытие Kafka producer
+    await shutdown_event_publisher()
 
     logger.info(f"{settings.service_name} shutdown complete")
 
@@ -127,7 +132,6 @@ def create_app() -> FastAPI:
 
     # === ROUTES ===
     app.include_router(restaurants.router, prefix=settings.api_prefix)
-    app.include_router(menu_items.router, prefix=settings.api_prefix)
 
     # Health check endpoint (для Kubernetes/Docker health checks)
     @app.get("/health", tags=["health"])
@@ -155,7 +159,7 @@ def create_app() -> FastAPI:
                 "dependencies": {
                     "database": "healthy" if base.AsyncSessionLocal else "not_initialized",
                     # TODO: Check Redis health
-                    # TODO: Check Kafka health
+                    "kafka": "healthy" if is_event_publisher_ready() else "not_initialized",
                 },
             },
         )

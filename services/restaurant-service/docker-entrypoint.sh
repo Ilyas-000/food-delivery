@@ -24,7 +24,7 @@ cd /app/services/restaurant-service
 log_level="$(python - <<'PY'
 from src.config import settings
 
-print(settings.log_level)
+print(settings.log_level.lower())
 PY
 )"
 

@@ -6,9 +6,10 @@ Retrieves all menu items for a restaurant.
 
 from uuid import UUID
 
-from src.application.dto import MenuItemResponseDTO
-from src.application.interfaces import IMenuItemRepository, IRestaurantRepository
-from src.domain.exceptions import RestaurantNotFoundError
+from src.application.dto.menu_item_dto import MenuItemResponseDTO
+from src.application.interfaces.menu_item_repository import IMenuItemRepository
+from src.application.interfaces.restaurant_repository import IRestaurantRepository
+from src.domain.exceptions.restaurant import RestaurantNotFoundError
 
 
 class GetRestaurantMenuUseCase:

@@ -55,6 +55,16 @@ class CreateMenuItemRequest(BaseModel):
     image_url: str | None = Field(default=None, max_length=500)
 
 
+class CreateRestaurantMenuItemRequest(BaseModel):
+    """Request schema for creating a menu item in a specific restaurant."""
+
+    name: str = Field(min_length=2, max_length=200)
+    description: str = Field(default="", max_length=1000)
+    price_amount: Decimal = Field(ge=0)
+    category: Category
+    image_url: str | None = Field(default=None, max_length=500)
+
+
 class UpdateMenuItemRequest(BaseModel):
     """Request schema for updating menu item."""
 
@@ -63,3 +73,9 @@ class UpdateMenuItemRequest(BaseModel):
     price_amount: Decimal | None = Field(default=None, ge=0)
     category: Category | None = None
     image_url: str | None = Field(default=None, max_length=500)
+
+
+class UpdateMenuItemAvailabilityRequest(BaseModel):
+    """Request schema for updating menu item availability."""
+
+    availability: Availability

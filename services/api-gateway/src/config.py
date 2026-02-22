@@ -39,8 +39,8 @@ class Settings(BaseSettings):
 
     # Service URLs (internal Docker network)
     user_service_url: str = "http://user-service:8001"
-    # TODO: Add other services when implementing Phase 2+
-    # restaurant_service_url: str = "http://restaurant-service:8002"
+    restaurant_service_url: str = "http://restaurant-service:8002"
+    # TODO: Add other services when implementing Phase 3+
     # order_service_url: str = "http://order-service:8003"
     # payment_service_url: str = "http://payment-service:8004"
     # delivery_service_url: str = "http://delivery-service:8005"
@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     proxy_timeout_default: float = 30.0
     proxy_timeout_auth: float = 15.0
     proxy_timeout_user: float = 10.0
+    proxy_timeout_restaurant: float = 10.0
 
     # Circuit Breaker settings
     circuit_breaker_failure_threshold: int = 5

@@ -314,7 +314,187 @@ async def get_user_by_id(
 
 
 # ============================================================================
+# RESTAURANT ROUTES (Protected - JWT required for write operations)
+# ============================================================================
+
+
+@router.post("/api/v1/restaurants")
+async def create_restaurant(
+    request: Request,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Create restaurant (proxied to Restaurant Service)."""
+    return await proxy_to_service(
+        request,
+        settings.restaurant_service_url,
+        "api/v1/restaurants",
+        timeout=settings.proxy_timeout_restaurant,
+        user=_user,
+    )
+
+
+@router.get("/api/v1/restaurants")
+async def search_restaurants(
+    request: Request,
+) -> Response:
+    """Search restaurants (proxied to Restaurant Service)."""
+    return await proxy_to_service(
+        request,
+        settings.restaurant_service_url,
+        "api/v1/restaurants",
+        timeout=settings.proxy_timeout_restaurant,
+    )
+
+
+@router.get("/api/v1/restaurants/{restaurant_id}")
+async def get_restaurant(
+    request: Request,
+    restaurant_id: str,
+) -> Response:
+    """Get restaurant by ID (proxied to Restaurant Service)."""
+    return await proxy_to_service(
+        request,
+        settings.restaurant_service_url,
+        f"api/v1/restaurants/{restaurant_id}",
+        timeout=settings.proxy_timeout_restaurant,
+    )
+
+
+@router.get("/api/v1/restaurants/{restaurant_id}/menu")
+async def get_restaurant_menu(
+    request: Request,
+    restaurant_id: str,
+) -> Response:
+    """Get restaurant menu (proxied to Restaurant Service)."""
+    return await proxy_to_service(
+        request,
+        settings.restaurant_service_url,
+        f"api/v1/restaurants/{restaurant_id}/menu",
+        timeout=settings.proxy_timeout_restaurant,
+    )
+
+
+@router.put("/api/v1/restaurants/{restaurant_id}")
+@router.patch("/api/v1/restaurants/{restaurant_id}", include_in_schema=False)
+async def update_restaurant(
+    request: Request,
+    restaurant_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Update restaurant (proxied to Restaurant Service)."""
+    return await proxy_to_service(
+        request,
+        settings.restaurant_service_url,
+        f"api/v1/restaurants/{restaurant_id}",
+        timeout=settings.proxy_timeout_restaurant,
+        user=_user,
+    )
+
+
+@router.delete("/api/v1/restaurants/{restaurant_id}")
+async def deactivate_restaurant(
+    request: Request,
+    restaurant_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Deactivate restaurant (proxied to Restaurant Service)."""
+    return await proxy_to_service(
+        request,
+        settings.restaurant_service_url,
+        f"api/v1/restaurants/{restaurant_id}",
+        timeout=settings.proxy_timeout_restaurant,
+        user=_user,
+    )
+
+
+@router.post("/api/v1/restaurants/{restaurant_id}/menu-items")
+async def create_restaurant_menu_item(
+    request: Request,
+    restaurant_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Create menu item in restaurant (proxied to Restaurant Service)."""
+    return await proxy_to_service(
+        request,
+        settings.restaurant_service_url,
+        f"api/v1/restaurants/{restaurant_id}/menu-items",
+        timeout=settings.proxy_timeout_restaurant,
+        user=_user,
+    )
+
+
+@router.get("/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}")
+async def get_restaurant_menu_item(
+    request: Request,
+    restaurant_id: str,
+    menu_item_id: str,
+) -> Response:
+    """Get menu item in restaurant (proxied to Restaurant Service)."""
+    return await proxy_to_service(
+        request,
+        settings.restaurant_service_url,
+        f"api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}",
+        timeout=settings.proxy_timeout_restaurant,
+    )
+
+
+@router.put("/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}")
+@router.patch(
+    "/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}",
+    include_in_schema=False,
+)
+async def update_restaurant_menu_item(
+    request: Request,
+    restaurant_id: str,
+    menu_item_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Update menu item in restaurant (proxied to Restaurant Service)."""
+    return await proxy_to_service(
+        request,
+        settings.restaurant_service_url,
+        f"api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}",
+        timeout=settings.proxy_timeout_restaurant,
+        user=_user,
+    )
+
+
+@router.patch("/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}/availability")
+async def update_restaurant_menu_item_availability(
+    request: Request,
+    restaurant_id: str,
+    menu_item_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Update menu item availability (proxied to Restaurant Service)."""
+    return await proxy_to_service(
+        request,
+        settings.restaurant_service_url,
+        f"api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}/availability",
+        timeout=settings.proxy_timeout_restaurant,
+        user=_user,
+    )
+
+
+@router.delete("/api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}")
+async def delete_restaurant_menu_item(
+    request: Request,
+    restaurant_id: str,
+    menu_item_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Delete menu item in restaurant (proxied to Restaurant Service)."""
+    return await proxy_to_service(
+        request,
+        settings.restaurant_service_url,
+        f"api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}",
+        timeout=settings.proxy_timeout_restaurant,
+        user=_user,
+    )
+
+
+# ============================================================================
 # CATCH-ALL ROUTE (for future services)
 # ============================================================================
-# TODO: When adding new services (Restaurant, Order, etc.), add specific
+# TODO: When adding new services (Order, Payment, Delivery), add specific
 # routes above or use a more sophisticated routing mechanism.

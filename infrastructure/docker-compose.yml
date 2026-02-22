@@ -124,8 +124,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_healthy
     ports:
       - "8001:8001"
     environment:
@@ -156,7 +154,7 @@ services:
       USER_SERVICE_JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${USER_SERVICE_JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
 
       # Security
-      USER_SERVICE_PASSWORD_BCRYPT_ROUNDS: 12
+      USER_SERVICE_PASSWORD_BCRYPT_ROUNDS: ${USER_SERVICE_BCRYPT_ROUNDS_DOCKER:-4}
 
       # Redis Configuration
       USER_SERVICE_REDIS_HOST: redis
@@ -169,6 +167,57 @@ services:
       - ../services/user-service/src:/app/src:ro  # Mount для hot-reload в development
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 40s
+
+  restaurant-service:
+    build:
+      context: ..
+      dockerfile: services/restaurant-service/Dockerfile
+    container_name: food-delivery-restaurant-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8002:8002"
+    environment:
+      # Service Configuration
+      RESTAURANT_SERVICE_SERVICE_NAME: restaurant-service
+      RESTAURANT_SERVICE_ENVIRONMENT: ${ENVIRONMENT:-development}
+      RESTAURANT_SERVICE_DEBUG: ${DEBUG:-true}
+      RESTAURANT_SERVICE_LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      # API Configuration
+      RESTAURANT_SERVICE_API_HOST: 0.0.0.0
+      RESTAURANT_SERVICE_API_PORT: 8002
+      RESTAURANT_SERVICE_API_PREFIX: /api/v1
+
+      # Database Configuration
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      RESTAURANT_SERVICE_DB_NAME: ${RESTAURANT_SERVICE_DB_NAME:-restaurant_service_db}
+      RESTAURANT_SERVICE_DB_USER: ${RESTAURANT_SERVICE_DB_USER:-restaurant_service_user}
+      RESTAURANT_SERVICE_DB_PASSWORD: ${RESTAURANT_SERVICE_DB_PASSWORD:-restaurant_service_password_change_me}
+      RESTAURANT_SERVICE_DATABASE_POOL_SIZE: 10
+      RESTAURANT_SERVICE_DATABASE_MAX_OVERFLOW: 20
+      RESTAURANT_SERVICE_DATABASE_ECHO: false
+
+      # Redis Configuration
+      RESTAURANT_SERVICE_REDIS_HOST: redis
+      RESTAURANT_SERVICE_REDIS_PORT: 6379
+      RESTAURANT_SERVICE_REDIS_DB: 2
+
+      # CORS
+      RESTAURANT_SERVICE_CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8000"]'
+    volumes:
+      - ../services/restaurant-service/src:/app/services/restaurant-service/src:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -183,6 +232,7 @@ services:
     depends_on:
       - redis
       - user-service
+      - restaurant-service
     ports:
       - "8000:8000"
     environment:
@@ -206,6 +256,7 @@ services:
 
       # Service URLs
       GATEWAY_USER_SERVICE_URL: ${GATEWAY_USER_SERVICE_URL:-http://user-service:8001}
+      GATEWAY_RESTAURANT_SERVICE_URL: ${GATEWAY_RESTAURANT_SERVICE_URL:-http://restaurant-service:8002}
 
       # Circuit Breaker
       GATEWAY_CIRCUIT_BREAKER_FAILURE_THRESHOLD: 5
@@ -244,6 +295,29 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  test-runner:
+    profiles: ["test"]
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/test-runner.Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    working_dir: /workspace
+    environment:
+      USER_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${USER_SERVICE_DB_USER:-user_service_user}:${USER_SERVICE_DB_PASSWORD:-user_service_password_change_me}@postgres:5432/${USER_SERVICE_TEST_DB_NAME:-user_service_test_db}
+      RESTAURANT_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${RESTAURANT_SERVICE_DB_USER:-restaurant_service_user}:${RESTAURANT_SERVICE_DB_PASSWORD:-restaurant_service_password_change_me}@postgres:5432/${RESTAURANT_SERVICE_TEST_DB_NAME:-restaurant_service_test_db}
+      GATEWAY_USER_SERVICE_URL: http://user-service:8001
+      GATEWAY_REDIS_HOST: redis
+      GATEWAY_REDIS_PORT: 6379
+      GATEWAY_REDIS_DB: 15
+    volumes:
+      - ..:/workspace
 
 volumes:
   postgres_data:

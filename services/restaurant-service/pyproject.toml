@@ -1,0 +1,75 @@
+[project]
+name = "food-delivery-restaurant-service"
+version = "0.1.0"
+description = "Restaurant Service - Restaurant and menu management"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+authors = [
+    { name = "Food Delivery Team" }
+]
+
+dependencies = [
+    # Internal dependencies
+    "food-delivery-shared",
+
+    # FastAPI
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.25.0",
+
+    # Database
+    "asyncpg>=0.29.0",
+    "sqlalchemy[asyncio]>=2.0.23",
+    "alembic>=1.13.0",
+
+    # Redis (for caching)
+    "redis[hiredis]>=5.0.0",
+
+    # Validation
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+
+    # Utilities
+    "python-dateutil>=2.8.2",
+    "structlog>=24.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "httpx>=0.25.2",  # For TestClient
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Package configuration
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# Ruff inherits from root
+[tool.ruff]
+extend = "../../pyproject.toml"
+
+# uv workspace sources
+[tool.uv.sources]
+food-delivery-shared = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
+addopts = [
+    "-q",
+    "--disable-warnings",
+    "--cov=src",
+    "--cov-config=pyproject.toml",
+]
+
+[tool.coverage.run]
+data_file = "/tmp/coverage-restaurant-service"

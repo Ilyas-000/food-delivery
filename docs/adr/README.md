@@ -56,12 +56,13 @@ Create an ADR when making decisions about:
 |---|-------|--------|------|
 | [001](001-microservices-architecture.md) | Microservices Architecture | Proposed | 2026-01-04 |
 | [002](002-saga-pattern-orchestration.md) | Saga Pattern (Orchestration) | Proposed | TBD |
-| [003](003-kafka-vs-rabbitmq.md) | Kafka vs RabbitMQ for Event Bus | Proposed | TBD |
-| [004](004-outbox-pattern.md) | Outbox Pattern for Reliable Events | Proposed | TBD |
-| [005](005-clean-architecture.md) | Clean Architecture in Services | Proposed | TBD |
-| [006](006-websocket-redis-pubsub.md) | WebSocket + Redis Pub/Sub for Tracking | Proposed | TBD |
-| [007](007-postgresql-per-service.md) | Separate PostgreSQL DB per Service | Proposed | TBD |
-| [008](008-python-async.md) | Python Async/Await for I/O Operations | Proposed | TBD |
+| [003](003-restaurant-service-architecture.md) | Restaurant Service Architecture | Proposed | 2026-01-31 |
+| [004](004-kafka-vs-rabbitmq.md) | Kafka vs RabbitMQ for Event Bus | Proposed | TBD |
+| [005](005-outbox-pattern.md) | Outbox Pattern for Reliable Events | Proposed | TBD |
+| [006](006-clean-architecture.md) | Clean Architecture in Services | Proposed | TBD |
+| [007](007-websocket-redis-pubsub.md) | WebSocket + Redis Pub/Sub for Tracking | Proposed | TBD |
+| [008](008-postgresql-per-service.md) | Separate PostgreSQL DB per Service | Proposed | TBD |
+| [009](009-python-async.md) | Python Async/Await for I/O Operations | Proposed | TBD |
 
 ## Template
 

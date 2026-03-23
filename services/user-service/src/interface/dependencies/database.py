@@ -1,14 +1,4 @@
-"""
-Database dependencies for dependency injection.
-
-FastAPI Depends() pattern for providing database sessions and repositories.
-
-Interview note:
-Dependency Injection allows:
-- Easy testing (mock repositories)
-- Loose coupling
-- Single responsibility (endpoints don't manage DB lifecycle)
-"""
+"""Database dependencies for FastAPI dependency injection."""
 
 from collections.abc import AsyncGenerator
 from typing import Annotated

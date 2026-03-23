@@ -29,10 +29,12 @@ async def readiness_check(request: Request) -> JSONResponse:
     Checks:
     - Redis connection (for rate limiting)
     - User Service availability
+    - Order Service availability
     """
     checks = {
         "redis": "unknown",
         "user_service": "unknown",
+        "order_service": "unknown",
     }
     all_healthy = True
 
@@ -67,6 +69,26 @@ async def readiness_check(request: Request) -> JSONResponse:
     except Exception as e:
         logger.error("User Service health check failed", error=str(e))
         checks["user_service"] = "unhealthy"
+        all_healthy = False
+
+    # Check Order Service
+    try:
+        client = getattr(request.app.state, "http_client", None)
+        if client is None:
+            logger.warning("HTTP client not initialized; using temporary client")
+            async with httpx.AsyncClient(timeout=5.0) as temp_client:
+                response = await temp_client.get(f"{settings.order_service_url}/health")
+        else:
+            response = await client.get(f"{settings.order_service_url}/health", timeout=5.0)
+
+        if response.status_code == 200:
+            checks["order_service"] = "healthy"
+        else:
+            checks["order_service"] = "unhealthy"
+            all_healthy = False
+    except Exception as e:
+        logger.error("Order Service health check failed", error=str(e))
+        checks["order_service"] = "unhealthy"
         all_healthy = False
 
     status_code = status.HTTP_200_OK if all_healthy else status.HTTP_503_SERVICE_UNAVAILABLE

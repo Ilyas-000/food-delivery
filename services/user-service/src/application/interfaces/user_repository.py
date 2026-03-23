@@ -1,22 +1,4 @@
-"""
-IUserRepository - interface for user data access.
-
-Repository Pattern - абстракция для работы с данными.
-
-Key benefits (для собеседований):
-1. Abstraction - use cases не знают о БД
-2. Testability - легко создать mock repository
-3. Flexibility - можно заменить PostgreSQL на MongoDB без изменения use cases
-4. Domain focus - репозиторий работает с domain entities, а не с SQL
-
-Interview questions:
-Q: "В чём разница между Repository и DAO?"
-A: Repository - domain-centric (работает с Aggregates),
-   DAO - data-centric (работает с таблицами)
-
-Q: "Почему не использовать SQLAlchemy напрямую в use cases?"
-A: Нарушает Dependency Inversion - use cases зависели бы от infrastructure
-"""
+"""Repository contract for user persistence."""
 
 from abc import ABC, abstractmethod
 from uuid import UUID
@@ -26,23 +8,7 @@ from src.domain.value_objects.email import Email
 
 
 class IUserRepository(ABC):
-    """
-    Interface для работы с пользователями.
-
-    Следует принципу Dependency Inversion:
-    - Application layer зависит от этого интерфейса
-    - Infrastructure layer реализует этот интерфейс
-    - Зависимость направлена внутрь (к domain)
-
-    Methods следуют паттернам:
-    - create() - создание новой entity
-    - get_by_X() - получение entity по различным критериям
-    - exists_by_X() - проверка существования (оптимизация)
-    - update() - обновление существующей entity
-    - delete() - удаление (или soft delete)
-
-    All methods are async для поддержки async/await в FastAPI.
-    """
+    """Persistence boundary used by user application use cases."""
 
     @abstractmethod
     async def create(self, user: User) -> User:

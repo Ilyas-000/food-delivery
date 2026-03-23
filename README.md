@@ -48,7 +48,7 @@ Kafka (event bus) подключается по мере ввода сервис
 | API Gateway | 8000 | ✅ Готов | JWT, rate limiting, routing |
 | User Service | 8001 | ✅ Готов | регистрация, логин, профиль |
 | Restaurant Service | 8002 | 🚧 План | рестораны, меню |
-| Order Service | 8003 | 🚧 План | заказы, saga |
+| Order Service | 8003 | 🚧 В работе | заказы, saga |
 | Payment Service | 8004 | 🚧 План | платежи |
 | Delivery Service | 8005 | 🚧 План | доставка, трекинг |
 | Notification Service | 8006 | 🚧 План | уведомления |

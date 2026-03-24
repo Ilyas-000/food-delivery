@@ -1,30 +1,4 @@
-"""
-UserModel - SQLAlchemy ORM model for users table.
-
-ORM Model vs Domain Entity (важно для собеседований):
-
-ORM Model (UserModel):
-- Представляет таблицу в БД
-- Знает о SQLAlchemy, колонках, индексах
-- Простая структура данных
-- Persistence concern
-
-Domain Entity (User):
-- Представляет бизнес-концепцию
-- Не знает о БД
-- Содержит бизнес-логику и методы
-- Business concern
-
-Repository Pattern связывает их:
-UserModel <--(маппинг)--> User Entity
-
-Interview questions:
-Q: "Почему не использовать SQLAlchemy модели как domain entities?"
-A: Нарушает separation of concerns
-   Domain зависел бы от ORM framework
-   Сложно тестировать без БД
-   Active Record anti-pattern (entity знает как себя сохранить)
-"""
+"""SQLAlchemy model for the users table."""
 
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
@@ -43,30 +17,7 @@ def utc_now() -> datetime:
 
 
 class UserModel(Base):
-    """
-    SQLAlchemy model for users table.
-
-    Используем SQLAlchemy 2.0 style с Mapped и mapped_column.
-
-    Table structure:
-    - id: UUID primary key
-    - email: Unique, indexed
-    - password_hash: Bcrypt hash
-    - full_name: User's full name
-    - role: Enum (customer, courier, restaurant_owner, admin)
-    - is_active: Soft delete flag
-    - phone: Optional phone number
-    - created_at: Creation timestamp
-    - updated_at: Update timestamp
-
-    Indexes:
-    - email (unique) - для быстрого поиска при логине
-    - role - для фильтрации пользователей по роли
-    - created_at - для сортировки
-
-    Note: Мы НЕ используем эту модель в domain/application слоях!
-    Она используется только в infrastructure (repository).
-    """
+    """User persistence model used by infrastructure layer."""
 
     __tablename__ = "users"
 

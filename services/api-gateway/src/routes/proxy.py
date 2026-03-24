@@ -3,7 +3,8 @@
 Routes requests from clients to appropriate microservices:
 - /api/v1/auth/* -> User Service
 - /api/v1/users/* -> User Service
-- TODO: Add other services in future phases
+- /api/v1/restaurants/* -> Restaurant Service
+- /api/v1/orders/* -> Order Service
 """
 
 import json
@@ -494,7 +495,43 @@ async def delete_restaurant_menu_item(
 
 
 # ============================================================================
+# ORDER ROUTES (Protected - JWT required)
+# ============================================================================
+
+
+@router.post("/api/v1/orders")
+async def create_order(
+    request: Request,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Create order (proxied to Order Service)."""
+    return await proxy_to_service(
+        request,
+        settings.order_service_url,
+        "api/v1/orders",
+        timeout=settings.proxy_timeout_order,
+        user=_user,
+    )
+
+
+@router.get("/api/v1/orders/{order_id}")
+async def get_order(
+    request: Request,
+    order_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Get order by ID (proxied to Order Service)."""
+    return await proxy_to_service(
+        request,
+        settings.order_service_url,
+        f"api/v1/orders/{order_id}",
+        timeout=settings.proxy_timeout_order,
+        user=_user,
+    )
+
+
+# ============================================================================
 # CATCH-ALL ROUTE (for future services)
 # ============================================================================
-# TODO: When adding new services (Order, Payment, Delivery), add specific
+# TODO: When adding Payment/Delivery services, add specific
 # routes above or use a more sophisticated routing mechanism.

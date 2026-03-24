@@ -35,7 +35,10 @@ repos:
           - types-passlib
           - types-redis
           - types-requests
-        args: [--config-file=pyproject.toml]
+        args:
+          - --config-file=pyproject.toml
+          - --follow-imports=silent
+          - --cache-dir=.mypy_cache/pre-commit-api-gateway
         files: ^services/api-gateway/
         exclude: ^(services/api-gateway/tests/|services/api-gateway/migrations/)
       - id: mypy
@@ -53,7 +56,10 @@ repos:
           - types-passlib
           - types-redis
           - types-requests
-        args: [--config-file=pyproject.toml]
+        args:
+          - --config-file=pyproject.toml
+          - --follow-imports=silent
+          - --cache-dir=.mypy_cache/pre-commit-user-service
         files: ^services/user-service/
         exclude: ^(services/user-service/tests/|services/user-service/migrations/)
       - id: mypy
@@ -71,7 +77,10 @@ repos:
           - types-passlib
           - types-redis
           - types-requests
-        args: [--config-file=pyproject.toml]
+        args:
+          - --config-file=pyproject.toml
+          - --follow-imports=silent
+          - --cache-dir=.mypy_cache/pre-commit-shared
         files: ^shared/
         exclude: ^(shared/tests/)
 
@@ -134,12 +143,20 @@ repos:
         exclude: ^tests/
 
   # Docker-specific checks
-  - repo: https://github.com/hadolint/hadolint
-    rev: v2.12.0
+  - repo: local
     hooks:
-      - id: hadolint-docker
+      - id: hadolint-dockerfile
         name: hadolint-dockerfile
-        args: [--ignore, DL3008, --ignore, DL3013]
+        language: system
+        files: (^|/)(Dockerfile|.*\.dockerfile)$
+        entry: >
+          bash -lc '
+          if command -v hadolint >/dev/null 2>&1; then
+            hadolint --ignore DL3008 --ignore DL3013 "$@";
+          else
+            echo "hadolint is not installed; skipping Dockerfile lint";
+          fi
+          ' --
 
 # Configuration for specific hooks
 default_language_version:

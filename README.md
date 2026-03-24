@@ -48,9 +48,9 @@ Kafka (event bus) подключается по мере ввода сервис
 | API Gateway | 8000 | ✅ Готов | JWT, rate limiting, routing |
 | User Service | 8001 | ✅ Готов | регистрация, логин, профиль |
 | Restaurant Service | 8002 | 🚧 План | рестораны, меню |
-| Order Service | 8003 | 🚧 План | заказы, saga |
-| Payment Service | 8004 | 🚧 План | платежи |
-| Delivery Service | 8005 | 🚧 План | доставка, трекинг |
+| Order Service | 8003 | 🚧 В работе | заказы, saga |
+| Payment Service | 8004 | 🚧 В работе | резервирование платежа (saga contract) |
+| Delivery Service | 8005 | 🚧 В работе | назначение курьера (saga contract) |
 | Notification Service | 8006 | 🚧 План | уведомления |
 | Analytics Service | 8007 | 🚧 План | аналитика |
 | Review Service | 8008 | 🚧 План | отзывы |
@@ -109,6 +109,12 @@ make dev-user
 
 # API Gateway локально
 make dev-gateway
+
+# Payment Service локально
+make dev-payment
+
+# Delivery Service локально
+make dev-delivery
 ```
 
 Если запускаешь сервисы локально, убедись, что переменные в окружении указывают на localhost:
@@ -123,6 +129,8 @@ make test           # тесты в корне (если есть)
 make test-all       # тесты во всех сервисах
 make test-user      # тесты User Service
 make test-gateway   # тесты API Gateway
+make test-payment   # тесты Payment Service
+make test-delivery  # тесты Delivery Service
 ```
 
 Для интеграционных тестов user-service нужен `USER_SERVICE_TEST_DATABASE_URL`.

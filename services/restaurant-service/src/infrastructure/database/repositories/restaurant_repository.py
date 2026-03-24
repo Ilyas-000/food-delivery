@@ -1,20 +1,4 @@
-"""
-RestaurantRepository - SQLAlchemy implementation of IRestaurantRepository.
-
-Repository Pattern implementation:
-
-Repository Pattern:
-- Abstracts data access
-- Maps between Domain Entities and ORM Models
-- Encapsulates queries and database logic
-- Easy to test (can create mock/in-memory implementation)
-
-Key responsibilities:
-1. CRUD operations
-2. Entity ↔ Model mapping
-3. Database error handling
-4. Query optimization
-"""
+"""SQLAlchemy repository for restaurant persistence."""
 
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -36,22 +20,7 @@ logger = structlog.get_logger(__name__)
 
 
 class RestaurantRepository(IRestaurantRepository):
-    """
-    SQLAlchemy implementation of IRestaurantRepository.
-
-    Implements Repository Pattern for working with restaurants.
-
-    Architecture:
-    - Accepts Domain Entity (Restaurant)
-    - Converts to ORM Model (RestaurantModel)
-    - Saves to PostgreSQL
-    - On load converts back Model → Entity
-
-    Dependencies:
-    - session: AsyncSession (SQLAlchemy async session)
-
-    Note: Repository does NOT know where session came from (DI)
-    """
+    """Persist and query `Restaurant` entities via SQLAlchemy."""
 
     def __init__(self, session: AsyncSession) -> None:
         """

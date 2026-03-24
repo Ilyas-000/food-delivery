@@ -1,20 +1,4 @@
-"""
-User Entity - core domain entity representing a user in the system.
-
-Entity в DDD - это объект с уникальной идентичностью (ID).
-Два User с одинаковыми данными но разными ID - это РАЗНЫЕ пользователи.
-
-Key principles:
-1. Entities сравниваются по ID, а не по значениям полей
-2. Entities имеют lifecycle (создание, изменение, удаление)
-3. Entities могут иметь бизнес-методы
-4. Entities инкапсулируют бизнес-правила
-
-Interview notes:
-- Rich Domain Model vs Anemic Domain Model (мы используем Rich)
-- Factory Method pattern для создания entities
-- Encapsulation - private поля, публичные методы
-"""
+"""User domain entity with profile and lifecycle operations."""
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime

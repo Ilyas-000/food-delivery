@@ -17,15 +17,25 @@ else
     echo "⚠ User Service: No Alembic configuration found"
 fi
 
-# Restaurant Service (TODO)
-# echo "→ Restaurant Service migrations..."
-# cd "$PROJECT_ROOT/services/restaurant-service"
-# alembic upgrade head
+# Restaurant Service
+echo "→ Restaurant Service migrations..."
+cd "$PROJECT_ROOT/services/restaurant-service"
+if [ -d "alembic" ]; then
+    alembic upgrade head
+    echo "✓ Restaurant Service migrations completed"
+else
+    echo "⚠ Restaurant Service: No Alembic configuration found"
+fi
 
-# Order Service (TODO)
-# echo "→ Order Service migrations..."
-# cd "$PROJECT_ROOT/services/order-service"
-# alembic upgrade head
+# Order Service
+echo "→ Order Service migrations..."
+cd "$PROJECT_ROOT/services/order-service"
+if [ -d "alembic" ]; then
+    alembic upgrade head
+    echo "✓ Order Service migrations completed"
+else
+    echo "⚠ Order Service: No Alembic configuration found"
+fi
 
 echo ""
 echo "✓ All migrations completed successfully"

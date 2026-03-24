@@ -223,6 +223,104 @@ services:
       retries: 3
       start_period: 40s
 
+  order-service:
+    build:
+      context: ..
+      dockerfile: services/order-service/Dockerfile
+    container_name: food-delivery-order-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      delivery-service:
+        condition: service_healthy
+    ports:
+      - "8003:8003"
+    environment:
+      ORDER_SERVICE_SERVICE_NAME: order-service
+      ORDER_SERVICE_ENVIRONMENT: ${ENVIRONMENT:-development}
+      ORDER_SERVICE_DEBUG: ${DEBUG:-true}
+      ORDER_SERVICE_LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      ORDER_SERVICE_REPOSITORY_BACKEND: postgres
+      ORDER_SERVICE_SAGA_BACKEND: ${ORDER_SERVICE_SAGA_BACKEND:-http}
+      ORDER_SERVICE_SAGA_STEP_TIMEOUT_SECONDS: ${ORDER_SERVICE_SAGA_STEP_TIMEOUT_SECONDS:-5}
+
+      ORDER_SERVICE_API_HOST: 0.0.0.0
+      ORDER_SERVICE_API_PORT: 8003
+      ORDER_SERVICE_API_PREFIX: /api/v1
+
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      ORDER_SERVICE_DB_NAME: ${ORDER_SERVICE_DB_NAME:-order_service_db}
+      ORDER_SERVICE_DB_USER: ${ORDER_SERVICE_DB_USER:-order_service_user}
+      ORDER_SERVICE_DB_PASSWORD: ${ORDER_SERVICE_DB_PASSWORD:-order_service_password_change_me}
+      ORDER_SERVICE_DATABASE_POOL_SIZE: 10
+      ORDER_SERVICE_DATABASE_MAX_OVERFLOW: 20
+      ORDER_SERVICE_DATABASE_ECHO: false
+      ORDER_SERVICE_RESTAURANT_SERVICE_URL: ${ORDER_SERVICE_RESTAURANT_SERVICE_URL:-http://restaurant-service:8002}
+      ORDER_SERVICE_PAYMENT_SERVICE_URL: ${ORDER_SERVICE_PAYMENT_SERVICE_URL:-http://payment-service:8004}
+      ORDER_SERVICE_DELIVERY_SERVICE_URL: ${ORDER_SERVICE_DELIVERY_SERVICE_URL:-http://delivery-service:8005}
+    volumes:
+      - ../services/order-service/src:/app/services/order-service/src:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  payment-service:
+    build:
+      context: ..
+      dockerfile: services/payment-service/Dockerfile
+    container_name: food-delivery-payment-service
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    environment:
+      PAYMENT_SERVICE_SERVICE_NAME: payment-service
+      PAYMENT_SERVICE_ENVIRONMENT: ${ENVIRONMENT:-development}
+      PAYMENT_SERVICE_DEBUG: ${DEBUG:-true}
+      PAYMENT_SERVICE_API_HOST: 0.0.0.0
+      PAYMENT_SERVICE_API_PORT: 8004
+      PAYMENT_SERVICE_API_PREFIX: /api/v1
+    volumes:
+      - ../services/payment-service/src:/app/services/payment-service/src:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  delivery-service:
+    build:
+      context: ..
+      dockerfile: services/delivery-service/Dockerfile
+    container_name: food-delivery-delivery-service
+    restart: unless-stopped
+    ports:
+      - "8005:8005"
+    environment:
+      DELIVERY_SERVICE_SERVICE_NAME: delivery-service
+      DELIVERY_SERVICE_ENVIRONMENT: ${ENVIRONMENT:-development}
+      DELIVERY_SERVICE_DEBUG: ${DEBUG:-true}
+      DELIVERY_SERVICE_API_HOST: 0.0.0.0
+      DELIVERY_SERVICE_API_PORT: 8005
+      DELIVERY_SERVICE_API_PREFIX: /api/v1
+    volumes:
+      - ../services/delivery-service/src:/app/services/delivery-service/src:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   api-gateway:
     build:
       context: ..
@@ -233,6 +331,7 @@ services:
       - redis
       - user-service
       - restaurant-service
+      - order-service
     ports:
       - "8000:8000"
     environment:
@@ -257,6 +356,7 @@ services:
       # Service URLs
       GATEWAY_USER_SERVICE_URL: ${GATEWAY_USER_SERVICE_URL:-http://user-service:8001}
       GATEWAY_RESTAURANT_SERVICE_URL: ${GATEWAY_RESTAURANT_SERVICE_URL:-http://restaurant-service:8002}
+      GATEWAY_ORDER_SERVICE_URL: ${GATEWAY_ORDER_SERVICE_URL:-http://order-service:8003}
 
       # Circuit Breaker
       GATEWAY_CIRCUIT_BREAKER_FAILURE_THRESHOLD: 5

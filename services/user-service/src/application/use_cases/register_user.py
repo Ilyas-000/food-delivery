@@ -1,27 +1,4 @@
-"""
-RegisterUserUseCase - business logic for user registration.
-
-Use Case pattern (популярно на собеседованиях):
-
-Use Case представляет сценарий использования системы.
-В нашем случае: "Пользователь регистрируется в системе"
-
-Key principles:
-1. Single Responsibility - один use case = один сценарий
-2. Dependency Inversion - зависит от интерфейсов (IUserRepository)
-3. Technology agnostic - не знает про HTTP, SQL, FastAPI
-4. Orchestration - координирует entities и repositories
-
-Interview questions:
-Q: "В чём разница между Use Case и Service?"
-A: Use Case - конкретный сценарий (RegisterUser, LoginUser)
-   Service - общая логика (UserService с кучей методов)
-   Use Cases более гранулированы и тестируемы
-
-Q: "Почему не положить эту логику в API endpoint?"
-A: Нарушает разделение concerns - бизнес-логика смешана с HTTP
-   Use Cases можно переиспользовать (HTTP API, gRPC, CLI, tests)
-"""
+"""Use case for user registration."""
 
 import structlog
 
@@ -43,24 +20,7 @@ logger = structlog.get_logger(__name__)
 
 
 class RegisterUserUseCase:
-    """
-    Use Case для регистрации нового пользователя.
-
-    Flow:
-    1. Валидация email формата (через Email VO)
-    2. Проверка что пользователь не существует
-    3. Хэширование пароля
-    4. Создание User entity
-    5. Сохранение в repository
-    6. Возврат UserResponseDTO
-
-    Dependencies (Dependency Injection через конструктор):
-    - user_repository: IUserRepository (интерфейс!)
-    - password_hasher: IPasswordHasher (интерфейс!)
-
-    Важно: Use Case зависит от интерфейсов, а не от реализаций.
-    Это позволяет легко тестировать и менять реализацию.
-    """
+    """Validate input, create user entity, and persist new user."""
 
     def __init__(
         self,

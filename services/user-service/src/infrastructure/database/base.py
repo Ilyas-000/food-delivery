@@ -1,14 +1,4 @@
-"""
-SQLAlchemy base class and database utilities.
-
-Используем SQLAlchemy 2.0 async style с asyncpg driver.
-
-Interview notes:
-Q: "Почему async SQLAlchemy?"
-A: FastAPI async - нужен async DB driver
-   asyncpg быстрее psycopg2 (~3x performance)
-   Non-blocking I/O для микросервисов
-"""
+"""SQLAlchemy base declarations and session factory helpers."""
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase

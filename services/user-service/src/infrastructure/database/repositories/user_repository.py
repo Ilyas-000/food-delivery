@@ -1,31 +1,4 @@
-"""
-UserRepository - SQLAlchemy implementation of IUserRepository.
-
-Repository Pattern implementation (популярно на собеседованиях):
-
-Repository Pattern:
-- Абстрагирует доступ к данным
-- Делает маппинг между Domain Entities и ORM Models
-- Инкапсулирует queries и database logic
-- Легко тестировать (можно создать mock/in-memory implementation)
-
-Key responsibilities:
-1. CRUD operations
-2. Entity ↔ Model mapping
-3. Database error handling
-4. Query optimization
-
-Interview questions:
-Q: "Почему не использовать SQLAlchemy напрямую в use cases?"
-A: Нарушает Dependency Inversion Principle
-   Use cases зависели бы от concrete implementation
-   Сложно тестировать (нужна реальная БД)
-   Coupling между business logic и persistence
-
-Q: "Где происходит валидация?"
-A: В Domain Entity (бизнес-правила)
-   Repository просто сохраняет/загружает
-"""
+"""SQLAlchemy repository implementation for users."""
 
 from uuid import UUID
 
@@ -44,22 +17,7 @@ logger = structlog.get_logger(__name__)
 
 
 class UserRepository(IUserRepository):
-    """
-    SQLAlchemy implementation of IUserRepository.
-
-    Реализует Repository Pattern для работы с пользователями.
-
-    Architecture:
-    - Принимает Domain Entity (User)
-    - Конвертирует в ORM Model (UserModel)
-    - Сохраняет в PostgreSQL
-    - При загрузке конвертирует обратно Model → Entity
-
-    Dependencies:
-    - session: AsyncSession (SQLAlchemy async session)
-
-    Note: Repository НЕ знает откуда взялась session (DI)
-    """
+    """Persist and load users using SQLAlchemy async session."""
 
     def __init__(self, session: AsyncSession) -> None:
         """

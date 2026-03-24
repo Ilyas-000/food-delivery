@@ -1,20 +1,4 @@
-"""
-MenuItemRepository - SQLAlchemy implementation of IMenuItemRepository.
-
-Repository Pattern implementation:
-
-Repository Pattern:
-- Abstracts data access
-- Maps between Domain Entities and ORM Models
-- Encapsulates queries and database logic
-- Easy to test (can create mock/in-memory implementation)
-
-Key responsibilities:
-1. CRUD operations
-2. Entity ↔ Model mapping
-3. Database error handling
-4. Query optimization
-"""
+"""SQLAlchemy repository for menu item persistence."""
 
 from uuid import UUID
 
@@ -33,22 +17,7 @@ logger = structlog.get_logger(__name__)
 
 
 class MenuItemRepository(IMenuItemRepository):
-    """
-    SQLAlchemy implementation of IMenuItemRepository.
-
-    Implements Repository Pattern for working with menu items.
-
-    Architecture:
-    - Accepts Domain Entity (MenuItem)
-    - Converts to ORM Model (MenuItemModel)
-    - Saves to PostgreSQL
-    - On load converts back Model → Entity
-
-    Dependencies:
-    - session: AsyncSession (SQLAlchemy async session)
-
-    Note: Repository does NOT know where session came from (DI)
-    """
+    """Persist and query `MenuItem` entities via SQLAlchemy."""
 
     def __init__(self, session: AsyncSession) -> None:
         """

@@ -1,27 +1,4 @@
-"""
-PasswordHasher - bcrypt implementation for password hashing.
-
-Uses bcrypt для безопасного хэширования паролей.
-
-Why bcrypt (для собеседований):
-1. Slow by design - защита от brute force
-2. Adaptive - можно увеличивать rounds со временем
-3. Built-in salt - защита от rainbow tables
-4. Industry standard - используется повсеместно
-
-Security parameters:
-- rounds=12 (default) - ~300ms на хэш (баланс security/performance)
-- Можно увеличить до 14-16 для более критичных систем
-
-Interview notes:
-Q: "Можно ли использовать hashlib (SHA256)?"
-A: Нет! SHA256 слишком быстрый, можно брутфорсить GPU
-   Нужны key derivation functions: bcrypt, argon2, scrypt
-
-Q: "Что если в будущем нужно сменить алгоритм?"
-A: Храним версию в хэше ($2b$ - bcrypt)
-   При логине проверяем версию и перехэшируем
-"""
+"""Bcrypt implementation of password hashing contract."""
 
 import asyncio
 from typing import cast
@@ -32,17 +9,7 @@ from src.application.interfaces.password_hasher import IPasswordHasher
 
 
 class PasswordHasher(IPasswordHasher):
-    """
-    Bcrypt implementation of IPasswordHasher.
-
-    Bcrypt - это slow hashing algorithm, специально разработанный для паролей.
-    Он использует Blowfish cipher и адаптивное количество раундов.
-
-    Attributes:
-        rounds: Количество раундов хэширования (по умолчанию 12)
-                Больше rounds = безопаснее, но медленнее
-                12 rounds ≈ 300ms (хороший баланс)
-    """
+    """Hash and verify passwords via bcrypt."""
 
     MIN_BCRYPT_ROUNDS = 4
     MAX_BCRYPT_ROUNDS = 31

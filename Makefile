@@ -1,4 +1,4 @@
-.PHONY: help install dev-install setup-dev up down restart logs health clean clean-image clean-images test test-all lint format type-check pre-commit migrate seed
+.PHONY: help install dev-install setup-dev up down restart logs health clean clean-image clean-images test test-all lint format type-check pre-commit migrate seed test-payment test-delivery dev-payment dev-delivery
 
 # Default target
 .DEFAULT_GOAL := help
@@ -178,8 +178,10 @@ ifdef SERVICE
 			$(COMPOSE) up -d postgres redis user-service; \
 			$(MAKE) wait-http URL=http://localhost:8001/health; \
 			;; \
-		user-service|restaurant-service) \
+		user-service|restaurant-service|order-service) \
 			$(COMPOSE) up -d postgres redis; \
+			;; \
+		payment-service|delivery-service) \
 			;; \
 		*) \
 			echo "$(RED)Error: Unknown service '$(SERVICE)'$(NC)"; \
@@ -200,6 +202,15 @@ test-gateway: ## Run tests for API Gateway
 test-restaurant: ## Run tests for restaurant service
 	@$(MAKE) test-service SERVICE=restaurant-service
 
+test-order: ## Run tests for order service
+	@$(MAKE) test-service SERVICE=order-service
+
+test-payment: ## Run tests for payment service
+	@$(MAKE) test-service SERVICE=payment-service
+
+test-delivery: ## Run tests for delivery service
+	@$(MAKE) test-service SERVICE=delivery-service
+
 lint: ## Run ruff linter
 	@echo "$(BLUE)Running linter...$(NC)"
 	ruff check .
@@ -215,6 +226,9 @@ type-check: ## Run mypy type checker
 	MYPYPATH=shared/src:services/api-gateway mypy services/api-gateway/src
 	MYPYPATH=shared/src:services/user-service mypy services/user-service/src
 	MYPYPATH=shared/src:services/restaurant-service mypy services/restaurant-service/src
+	MYPYPATH=shared/src:services/order-service mypy services/order-service/src
+	MYPYPATH=shared/src:services/payment-service mypy services/payment-service/src
+	MYPYPATH=shared/src:services/delivery-service mypy services/delivery-service/src
 	MYPYPATH=shared/src mypy shared/src
 
 pre-commit: ## Run all pre-commit hooks
@@ -244,6 +258,18 @@ dev-gateway: ## Run API Gateway locally
 dev-restaurant: ## Run Restaurant Service locally
 	@echo "$(BLUE)Starting Restaurant Service...$(NC)"
 	cd services/restaurant-service && uvicorn src.main:app --reload --port 8002
+
+dev-order: ## Run Order Service locally
+	@echo "$(BLUE)Starting Order Service...$(NC)"
+	cd services/order-service && uvicorn src.main:app --reload --port 8003
+
+dev-payment: ## Run Payment Service locally
+	@echo "$(BLUE)Starting Payment Service...$(NC)"
+	cd services/payment-service && uvicorn src.main:app --reload --port 8004
+
+dev-delivery: ## Run Delivery Service locally
+	@echo "$(BLUE)Starting Delivery Service...$(NC)"
+	cd services/delivery-service && uvicorn src.main:app --reload --port 8005
 
 ## Kafka
 

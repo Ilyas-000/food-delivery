@@ -25,10 +25,6 @@ Error format follows docs/API_CONVENTIONS.md:
     "timestamp": "ISO 8601"
   }
 }
-
-Interview note:
-This is separation of concerns - domain doesn't know about HTTP,
-API layer translates domain concepts to HTTP concepts.
 """
 
 from datetime import UTC, datetime

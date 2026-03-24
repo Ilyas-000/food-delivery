@@ -234,6 +234,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      delivery-service:
+        condition: service_healthy
     ports:
       - "8003:8003"
     environment:
@@ -242,7 +246,7 @@ services:
       ORDER_SERVICE_DEBUG: ${DEBUG:-true}
       ORDER_SERVICE_LOG_LEVEL: ${LOG_LEVEL:-INFO}
       ORDER_SERVICE_REPOSITORY_BACKEND: postgres
-      ORDER_SERVICE_SAGA_BACKEND: ${ORDER_SERVICE_SAGA_BACKEND:-mock}
+      ORDER_SERVICE_SAGA_BACKEND: ${ORDER_SERVICE_SAGA_BACKEND:-http}
       ORDER_SERVICE_SAGA_STEP_TIMEOUT_SECONDS: ${ORDER_SERVICE_SAGA_STEP_TIMEOUT_SECONDS:-5}
 
       ORDER_SERVICE_API_HOST: 0.0.0.0
@@ -268,6 +272,54 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+
+  payment-service:
+    build:
+      context: ..
+      dockerfile: services/payment-service/Dockerfile
+    container_name: food-delivery-payment-service
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    environment:
+      PAYMENT_SERVICE_SERVICE_NAME: payment-service
+      PAYMENT_SERVICE_ENVIRONMENT: ${ENVIRONMENT:-development}
+      PAYMENT_SERVICE_DEBUG: ${DEBUG:-true}
+      PAYMENT_SERVICE_API_HOST: 0.0.0.0
+      PAYMENT_SERVICE_API_PORT: 8004
+      PAYMENT_SERVICE_API_PREFIX: /api/v1
+    volumes:
+      - ../services/payment-service/src:/app/services/payment-service/src:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  delivery-service:
+    build:
+      context: ..
+      dockerfile: services/delivery-service/Dockerfile
+    container_name: food-delivery-delivery-service
+    restart: unless-stopped
+    ports:
+      - "8005:8005"
+    environment:
+      DELIVERY_SERVICE_SERVICE_NAME: delivery-service
+      DELIVERY_SERVICE_ENVIRONMENT: ${ENVIRONMENT:-development}
+      DELIVERY_SERVICE_DEBUG: ${DEBUG:-true}
+      DELIVERY_SERVICE_API_HOST: 0.0.0.0
+      DELIVERY_SERVICE_API_PORT: 8005
+      DELIVERY_SERVICE_API_PREFIX: /api/v1
+    volumes:
+      - ../services/delivery-service/src:/app/services/delivery-service/src:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   api-gateway:
     build:

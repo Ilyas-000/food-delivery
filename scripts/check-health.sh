@@ -71,6 +71,10 @@ check_container_health "food-delivery-pgadmin" "PgAdmin"
 
 # Check User Service and API Gateway (if running)
 check_container_health "food-delivery-user-service" "User Service"
+check_container_health "food-delivery-restaurant-service" "Restaurant Service"
+check_container_health "food-delivery-order-service" "Order Service"
+check_container_health "food-delivery-payment-service" "Payment Service"
+check_container_health "food-delivery-delivery-service" "Delivery Service"
 check_container_health "food-delivery-api-gateway" "API Gateway"
 
 if docker ps -a --format '{{.Names}}' | grep -q '^food-delivery-clickhouse$'; then

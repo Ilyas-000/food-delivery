@@ -1,159 +1,149 @@
 # Food Delivery Platform
 
-Микросервисная платформа доставки еды с фокусом на надежность, масштабируемость и четкие инженерные правила.
-
-## Содержание
-
-- [Обзор](#обзор)
-- [Архитектура](#архитектура)
-- [Спецификация и стандарты](#спецификация-и-стандарты)
-- [Сервисы](#сервисы)
-- [Технологический стек](#технологический-стек)
-- [Инфраструктура и запуск](#инфраструктура-и-запуск)
-- [Локальная разработка](#локальная-разработка)
-- [Тестирование](#тестирование)
-- [Структура репозитория](#структура-репозитория)
-- [Документация](#документация)
-
----
+Микросервисная платформа доставки еды с фокусом на надежность, масштабируемость и предсказуемые инженерные практики.
 
 ## Обзор
 
-Проект реализует базовую платформу доставки еды на микросервисной архитектуре. Уже доступны API Gateway и User Service, остальные сервисы описаны в roadmap и добавляются по фазам.
+Текущее состояние репозитория:
+
+- ✅ `api-gateway`
+- ✅ `user-service`
+- ✅ `restaurant-service`
+- 🚧 `order-service` (saga orchestration, базовый API)
+- 🚧 `payment-service` (saga contract)
+- 🚧 `delivery-service` (saga contract)
+- ⚪ `notification-service`, `analytics-service`, `review-service` — в roadmap
 
 ## Архитектура
 
-```
-Clients → API Gateway → User Service → PostgreSQL
-                        ↘ Redis (rate limiting)
+```text
+Clients
+  -> API Gateway (8000)
+      -> User Service (8001)
+      -> Restaurant Service (8002)
+      -> Order Service (8003)
+           -> Payment Service (8004, reservation contract)
+           -> Delivery Service (8005, assignment contract)
 
-Kafka (event bus) подключается по мере ввода сервисов
+Infra:
+- PostgreSQL (service databases)
+- Redis (rate limiting + token storage)
+- Kafka + Kafka UI (event bus)
 ```
 
 Ключевые принципы:
-- единая точка входа через API Gateway
-- отдельные базы данных на сервис
-- строгие границы слоев (domain → application → infrastructure → interface)
-- единые API-конвенции и типовые ошибки
 
-## Спецификация и стандарты
-
-- API форматы и ошибки: `docs/API_CONVENTIONS.md`
-- Инженерные правила: `docs/ENGINEERING_CONVENTIONS.md`
+- единая точка входа через API Gateway;
+- разделение сервисов и контрактов;
+- Clean Architecture в доменных сервисах (`domain -> application -> infrastructure -> interface`);
+- единые API-конвенции и формат ошибок.
 
 ## Сервисы
 
-| Сервис | Порт | Статус | Назначение |
-|--------|------|--------|------------|
-| API Gateway | 8000 | ✅ Готов | JWT, rate limiting, routing |
-| User Service | 8001 | ✅ Готов | регистрация, логин, профиль |
-| Restaurant Service | 8002 | 🚧 План | рестораны, меню |
-| Order Service | 8003 | 🚧 В работе | заказы, saga |
-| Payment Service | 8004 | 🚧 В работе | резервирование платежа (saga contract) |
-| Delivery Service | 8005 | 🚧 В работе | назначение курьера (saga contract) |
-| Notification Service | 8006 | 🚧 План | уведомления |
-| Analytics Service | 8007 | 🚧 План | аналитика |
-| Review Service | 8008 | 🚧 План | отзывы |
+| Service | Port | Status | Purpose |
+|---|---:|---|---|
+| API Gateway | 8000 | ✅ | JWT validation, rate limiting, proxying |
+| User Service | 8001 | ✅ | registration, login, profile |
+| Restaurant Service | 8002 | ✅ | restaurants and menu management |
+| Order Service | 8003 | 🚧 | order creation and saga orchestration |
+| Payment Service | 8004 | 🚧 | payment reservation/release contract |
+| Delivery Service | 8005 | 🚧 | courier assignment/cancel contract |
+| Notification Service | 8006 | ⚪ | planned |
+| Analytics Service | 8007 | ⚪ | planned |
+| Review Service | 8008 | ⚪ | planned |
 
 ## Технологический стек
 
 - Python 3.12, FastAPI, Pydantic, SQLAlchemy
-- PostgreSQL, Redis
-- Kafka (event bus)
-- Docker, Docker Compose
+- PostgreSQL, Redis, Kafka
+- Docker / Docker Compose
+- `uv` workspace
 - pytest + pytest-asyncio
+- Ruff, mypy, pre-commit
 
-## Инфраструктура и запуск
-
-### Требования
-
-- Docker
-- Docker Compose
-- Python 3.12+ (для локальной разработки)
-- Make
-
-### Быстрый старт
+## Быстрый старт
 
 ```bash
-# 1) Подготовка окружения (создает .env при необходимости)
-make setup-dev
+# 1) Подготовить окружение
+cp .env.example .env
 
-# 2) Запуск инфраструктуры и сервисов
+# 2) Установить зависимости и инструменты
+make dev-install
+
+# 3) Поднять инфраструктуру и сервисы
 make up
 
-# 3) Проверка
+# 4) Проверить состояние
 make health
+
+# 5) Применить миграции
+make migrate
 ```
 
-### Полезные команды
+## Полезные команды
 
 ```bash
-make down        # остановить сервисы
-make logs        # смотреть логи
-make clean       # удалить контейнеры/тома/кеши
-make migrate     # миграции БД
-make seed        # сидирование
-make kafka-topics # создать топики Kafka
-```
+make down
+make logs
+make clean
+make kafka-topics
 
-## Локальная разработка
+make test-all
+make test-all-full
+make test-unit
+make test-integration
+make test-e2e
+make test-cov
 
-Запуск сервисов без Docker:
+make test-user
+make test-user-unit
+make test-user-integration
+make test-gateway
+make test-gateway-unit
+make test-gateway-integration
+make test-restaurant
+make test-restaurant-unit
+make test-restaurant-integration
+make test-order
+make test-order-unit
+make test-order-integration
+make test-payment
+make test-payment-unit
+make test-payment-integration
+make test-delivery
+make test-delivery-unit
+make test-delivery-integration
 
-```bash
-# Инфраструктура в Docker
-make up
-
-# User Service локально
-make dev-user
-
-# API Gateway локально
 make dev-gateway
-
-# Payment Service локально
+make dev-user
+make dev-restaurant
+make dev-order
 make dev-payment
-
-# Delivery Service локально
 make dev-delivery
 ```
 
-Если запускаешь сервисы локально, убедись, что переменные в окружении указывают на localhost:
-- `POSTGRES_HOST=localhost`
-- `GATEWAY_REDIS_HOST=localhost`
-- `GATEWAY_USER_SERVICE_URL=http://localhost:8001`
-
-## Тестирование
-
-```bash
-make test           # тесты в корне (если есть)
-make test-all       # тесты во всех сервисах
-make test-user      # тесты User Service
-make test-gateway   # тесты API Gateway
-make test-payment   # тесты Payment Service
-make test-delivery  # тесты Delivery Service
-```
-
-Для интеграционных тестов user-service нужен `USER_SERVICE_TEST_DATABASE_URL`.
+`make test` запускает только repo-level тесты из `./tests` (если они есть).
+`make test-all` запускает unit + integration по всем сервисам (без e2e).
 
 ## Структура репозитория
 
-```
+```text
 food-delivery/
-├── docs/                 # правила, ADR, техдолг
-├── infrastructure/       # docker-compose, init scripts
-├── scripts/              # setup, health, migrate, seed
-├── services/             # микросервисы
-├── shared/               # общие утилиты и контракты
-├── tests/                # repo-level tests (если есть)
+├── docs/
+├── infrastructure/
+├── scripts/
+├── services/
+├── shared/
+├── tests/
 ├── Makefile
 └── .env.example
 ```
 
 ## Документация
 
-- `docs/API_CONVENTIONS.md` — правила API и форматы ошибок
-- `docs/ENGINEERING_CONVENTIONS.md` — инженерные правила
+- `PROGRESS.md` — фактический статус фаз
+- `DEVELOPMENT-ROADMAP.md` — high-level план развития
+- `docs/API_CONVENTIONS.md` — API форматы и ошибки
+- `docs/ENGINEERING_CONVENTIONS.md` — инженерные соглашения
 - `docs/TECH_DEBT.md` — технический долг
-- `docs/adr/` — архитектурные решения
-- `DEVELOPMENT-ROADMAP.md` — план фаз
-- `PROGRESS.md` — текущий статус
+- `docs/adr/` — архитектурные решения (ADR)

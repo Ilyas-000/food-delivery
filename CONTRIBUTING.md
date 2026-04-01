@@ -73,7 +73,7 @@ Before committing:
 make format      # Format code
 make lint        # Check linting
 make type-check  # Check types
-make test        # Run tests
+make test-all    # Run unit + integration for all services
 ```
 
 Or run everything at once:
@@ -298,9 +298,13 @@ async def test_create_order_success():
 ### Running Tests
 
 ```bash
-make test           # All tests
-make test-unit      # Unit only
-make test-cov       # With coverage report
+make test-all         # Repo + all services (unit + integration)
+make test-all-full    # Repo + all services (unit + integration + e2e)
+make test-unit        # Unit only (all services)
+make test-integration # Integration only (all services)
+make test-e2e         # E2E only (all services)
+make test-cov         # With coverage report
+make test             # Repo-level tests from ./tests only
 ```
 
 ---
@@ -309,7 +313,7 @@ make test-cov       # With coverage report
 
 ### Before Submitting
 
-- ✅ All tests pass (`make test`)
+- ✅ Required test matrix passes (`make test-all`)
 - ✅ Code is formatted (`make format`)
 - ✅ No linting errors (`make lint`)
 - ✅ Type checking passes (`make type-check`)

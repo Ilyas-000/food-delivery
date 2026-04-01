@@ -129,3 +129,48 @@
 **Effort:** 2-4 часа
 **Phase:** 2
 **Status:** 🟡 Pending
+
+---
+
+## 🔧 Technical Debt - Phase 3 Integration Tests (Order Saga)
+
+### 1. Integration tests can be skipped in docker profile on reused Postgres volumes
+**Проблема:**
+- Для `order-service` integration-тестов нужен `ORDER_SERVICE_TEST_DATABASE_URL`.
+- На уже существующих локальных томах Postgres тестовая БД `order_service_test_db` может отсутствовать (init script отрабатывает только при первичной инициализации тома).
+- В результате `pytest -m integration` для `order-service` даёт `skipped`, и это маскирует реальное состояние Phase 3.
+
+**Что уже сделано:**
+- Добавлен `ORDER_SERVICE_TEST_DATABASE_URL` в `test-runner` (`infrastructure/docker-compose.yml`).
+- Добавлено создание `order_service_test_db` в `infrastructure/postgres/init-databases.sh` для новых инициализаций.
+
+**Что осталось сделать:**
+- Добавить явный preflight/auto-bootstrap test DB перед `make test-order` (или отдельной командой), чтобы на старых томах тесты не skip-ались.
+- В CI/локальном пайплайне считать skip этих integration-тестов сигналом о некорректном окружении.
+
+**Файлы:**
+- `infrastructure/docker-compose.yml`
+- `infrastructure/postgres/init-databases.sh`
+- `services/order-service/tests/integration/*`
+- `Makefile`
+
+**Приоритет:** 🟠 Medium
+**Effort:** 1-2 часа
+**Phase:** 3
+**Status:** 🟡 Pending
+
+### 2. Долгие ожидания при `make test-*` в случае проблем окружения
+**Проблема:**
+- При недоступном Docker daemon или нездоровых зависимостях тестовые цели могли ждать несколько минут перед падением.
+
+**Что уже сделано:**
+- Добавлен fail-fast precheck `docker-ready` в Makefile.
+- Сокращены и параметризованы ожидания `wait-http` (`WAIT_HTTP_RETRIES`, `WAIT_HTTP_SLEEP_SECONDS`).
+
+**Что осталось сделать:**
+- (Опционально) перевести ожидание сервисов на единый health-wait механизм compose/скрипт с агрегированным таймаутом.
+
+**Приоритет:** 🟡 Nice-to-have
+**Effort:** 0.5-1 час
+**Phase:** 3/9
+**Status:** 🟡 Pending

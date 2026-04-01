@@ -19,6 +19,7 @@ os.environ.setdefault("GATEWAY_LOGIN_PER_ACCOUNT_MINUTE", "5")
 os.environ.setdefault("GATEWAY_REFRESH_PER_IP_MINUTE", "60")
 os.environ.setdefault("GATEWAY_AUTH_GLOBAL_PER_IP_MINUTE", "60")
 os.environ.setdefault("GATEWAY_USER_SERVICE_URL", "http://localhost:8001")
+os.environ.setdefault("GATEWAY_ORDER_SERVICE_URL", "http://localhost:8003")
 os.environ.setdefault("GATEWAY_REDIS_HOST", "localhost")
 os.environ.setdefault("GATEWAY_REDIS_PORT", "6379")
 os.environ.setdefault("GATEWAY_REDIS_DB", "15")
@@ -106,6 +107,14 @@ def _is_user_service_ready() -> bool:
     return response.status_code == 200
 
 
+def _is_order_service_ready() -> bool:
+    try:
+        response = httpx.get(f"{settings.order_service_url}/health", timeout=2.0)
+    except httpx.RequestError:
+        return False
+    return response.status_code == 200
+
+
 @pytest.fixture
 def gateway_client() -> TestClient:
     """Gateway client backed by real Redis (integration)."""
@@ -126,6 +135,8 @@ def gateway_client_with_user_service() -> TestClient:
     _align_gateway_secret_with_user_service()
     if not _is_user_service_ready():
         pytest.skip(f"User Service not available at {settings.user_service_url}")
+    if not _is_order_service_ready():
+        pytest.skip(f"Order Service not available at {settings.order_service_url}")
     _flush_redis()
     app = create_app()
     with TestClient(app) as client:

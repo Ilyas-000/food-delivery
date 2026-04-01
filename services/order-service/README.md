@@ -19,3 +19,12 @@ Order creation and saga orchestration service.
 - HTTP mode expects service contracts:
   - `POST/DELETE /api/v1/payments/reservations`
   - `POST/DELETE /api/v1/deliveries/assignments`
+
+## Testing
+
+- Unit tests: `pytest -m unit`
+- Integration tests (`postgres + http saga`): `pytest -m integration`
+
+Integration tests require:
+- `ORDER_SERVICE_TEST_DATABASE_URL` (isolated test DB),
+- reachable `restaurant-service`, `payment-service`, and `delivery-service` URLs.

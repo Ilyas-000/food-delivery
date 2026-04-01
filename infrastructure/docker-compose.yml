@@ -291,7 +291,11 @@ services:
     volumes:
       - ../services/payment-service/src:/app/services/payment-service/src:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8004/health', timeout=5).read()\"",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -315,7 +319,11 @@ services:
     volumes:
       - ../services/delivery-service/src:/app/services/delivery-service/src:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8005/health', timeout=5).read()\"",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -408,11 +416,19 @@ services:
         condition: service_healthy
       user-service:
         condition: service_healthy
+      restaurant-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      delivery-service:
+        condition: service_healthy
     working_dir: /workspace
     environment:
       USER_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${USER_SERVICE_DB_USER:-user_service_user}:${USER_SERVICE_DB_PASSWORD:-user_service_password_change_me}@postgres:5432/${USER_SERVICE_TEST_DB_NAME:-user_service_test_db}
       RESTAURANT_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${RESTAURANT_SERVICE_DB_USER:-restaurant_service_user}:${RESTAURANT_SERVICE_DB_PASSWORD:-restaurant_service_password_change_me}@postgres:5432/${RESTAURANT_SERVICE_TEST_DB_NAME:-restaurant_service_test_db}
+      ORDER_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${ORDER_SERVICE_DB_USER:-order_service_user}:${ORDER_SERVICE_DB_PASSWORD:-order_service_password_change_me}@postgres:5432/${ORDER_SERVICE_TEST_DB_NAME:-order_service_test_db}
       GATEWAY_USER_SERVICE_URL: http://user-service:8001
+      GATEWAY_ORDER_SERVICE_URL: http://order-service:8003
       GATEWAY_REDIS_HOST: redis
       GATEWAY_REDIS_PORT: 6379
       GATEWAY_REDIS_DB: 15

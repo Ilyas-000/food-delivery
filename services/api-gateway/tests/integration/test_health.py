@@ -1,5 +1,9 @@
 """Integration tests for health check endpoints."""
 
+import pytest
+
+pytestmark = pytest.mark.integration
+
 
 def test_health_check(gateway_client):
     """Test basic health check endpoint."""
@@ -19,3 +23,4 @@ def test_readiness_check_all_healthy(gateway_client_with_user_service):
     assert data["status"] == "ready"
     assert data["dependencies"]["redis"] == "healthy"
     assert data["dependencies"]["user_service"] == "healthy"
+    assert data["dependencies"]["order_service"] == "healthy"

@@ -26,6 +26,10 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
     SELECT 'CREATE DATABASE ${ORDER_SERVICE_DB_NAME}'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${ORDER_SERVICE_DB_NAME}')\gexec
 
+    -- Order Service (tests)
+    SELECT 'CREATE DATABASE ${ORDER_SERVICE_TEST_DB_NAME:-order_service_test_db}'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${ORDER_SERVICE_TEST_DB_NAME:-order_service_test_db}')\gexec
+
     -- Payment Service
     SELECT 'CREATE DATABASE ${PAYMENT_SERVICE_DB_NAME}'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${PAYMENT_SERVICE_DB_NAME}')\gexec
@@ -108,5 +112,9 @@ create_role_and_grants \
   "${RESTAURANT_SERVICE_TEST_DB_NAME:-restaurant_service_test_db}" \
   "${RESTAURANT_SERVICE_DB_USER:-}" \
   "${RESTAURANT_SERVICE_DB_PASSWORD:-}"
+create_role_and_grants \
+  "${ORDER_SERVICE_TEST_DB_NAME:-order_service_test_db}" \
+  "${ORDER_SERVICE_DB_USER:-}" \
+  "${ORDER_SERVICE_DB_PASSWORD:-}"
 
 echo "Database initialization complete."

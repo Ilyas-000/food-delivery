@@ -19,7 +19,13 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _force_mock_saga_backend_for_unit_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+def _force_mock_saga_backend_for_unit_tests(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Keep unit tests isolated from external HTTP saga dependencies."""
+    if request.node.get_closest_marker("unit") is None:
+        return
+
     monkeypatch.setattr(order_dependencies.settings, "saga_backend", "mock")
     monkeypatch.setattr(order_dependencies.settings, "repository_backend", "memory")

@@ -89,17 +89,30 @@ make clean
 make kafka-topics
 
 make test-all
+make test-all-full
 make test-unit
 make test-integration
 make test-e2e
 make test-cov
 
 make test-user
+make test-user-unit
+make test-user-integration
 make test-gateway
+make test-gateway-unit
+make test-gateway-integration
 make test-restaurant
+make test-restaurant-unit
+make test-restaurant-integration
 make test-order
+make test-order-unit
+make test-order-integration
 make test-payment
+make test-payment-unit
+make test-payment-integration
 make test-delivery
+make test-delivery-unit
+make test-delivery-integration
 
 make dev-gateway
 make dev-user
@@ -110,6 +123,7 @@ make dev-delivery
 ```
 
 `make test` запускает только repo-level тесты из `./tests` (если они есть).
+`make test-all` запускает unit + integration по всем сервисам (без e2e).
 
 ## Структура репозитория
 

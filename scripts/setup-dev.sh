@@ -80,6 +80,13 @@ if [ $MISSING_DEPS -eq 1 ]; then
   exit 1
 fi
 
+# Resolve Docker Compose command (standalone binary or Docker plugin)
+DOCKER_COMPOSE_CMD="docker-compose"
+if ! command -v docker-compose &> /dev/null; then
+  DOCKER_COMPOSE_CMD="docker compose"
+fi
+log_info "Using Docker Compose command: ${DOCKER_COMPOSE_CMD}"
+
 # Check Python version
 log_info "Checking Python version..."
 REQUIRED_VERSION="3.12"
@@ -146,17 +153,17 @@ read -p "Do you want to start infrastructure now? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   if [ -f "infrastructure/docker-compose.yml" ]; then
-    docker-compose --env-file .env -f infrastructure/docker-compose.yml up -d
+    $DOCKER_COMPOSE_CMD --env-file .env -f infrastructure/docker-compose.yml up -d
     log_success "Infrastructure started"
 
     log_info "Waiting for services to be healthy..."
     sleep 10
 
     # Check if services are running
-    if docker-compose -f infrastructure/docker-compose.yml ps | grep -q "Up"; then
+    if $DOCKER_COMPOSE_CMD -f infrastructure/docker-compose.yml ps | grep -q "Up"; then
       log_success "Services are running"
     else
-      log_warning "Some services may not be running. Check with: docker-compose -f infrastructure/docker-compose.yml ps"
+      log_warning "Some services may not be running. Check with: $DOCKER_COMPOSE_CMD -f infrastructure/docker-compose.yml ps"
     fi
   else
     log_warning "docker-compose.yml not found. Will create it in Phase 0.2"

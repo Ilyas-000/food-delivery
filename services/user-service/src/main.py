@@ -14,6 +14,7 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 import structlog
 
 from src.config import settings
@@ -91,6 +92,36 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # TODO: Закрытие Kafka producer/consumer
 
     logger.info(f"{settings.service_name} shutdown complete")
+
+
+async def _check_database_dependency() -> str:
+    """Check that database is reachable."""
+    if base.AsyncSessionLocal is None:
+        return "not_initialized"
+
+    try:
+        async with base.AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception as exc:  # pragma: no cover - defensive health path
+        logger.warning("health.database.unhealthy", error=str(exc))
+        return "unhealthy"
+    else:
+        return "healthy"
+
+
+async def _check_redis_dependency(app: FastAPI) -> str:
+    """Check that Redis client is reachable."""
+    redis_client = getattr(app.state, "redis", None)
+    if redis_client is None:
+        return "not_initialized"
+
+    try:
+        is_alive = await redis_client.ping()
+    except Exception as exc:  # pragma: no cover - defensive health path
+        logger.warning("health.redis.unhealthy", error=str(exc))
+        return "unhealthy"
+    else:
+        return "healthy" if is_alive else "unhealthy"
 
 
 def create_app() -> FastAPI:
@@ -171,17 +202,23 @@ def create_app() -> FastAPI:
         """
         from datetime import datetime
 
-        # TODO: Add real health checks for dependencies
-        # For now, mark unconfigured dependencies as "not_configured"
+        database_status = await _check_database_dependency()
+        redis_status = await _check_redis_dependency(app)
+        dependencies = {
+            "database": database_status,
+            "redis": redis_status,
+            "kafka": "not_configured",
+        }
+
+        overall_status = "healthy"
+        if database_status != "healthy" or redis_status != "healthy":
+            overall_status = "unhealthy"
+
         return {
-            "status": "healthy",
+            "status": overall_status,
             "version": "0.1.0",
             "timestamp": datetime.now(UTC).isoformat(),
-            "dependencies": {
-                "database": "healthy",  # TODO: real check
-                "redis": "not_configured",  # TODO: implement
-                "kafka": "not_configured",  # TODO: implement
-            },
+            "dependencies": dependencies,
         }
 
     # === GLOBAL EXCEPTION HANDLER ===

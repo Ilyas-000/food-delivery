@@ -106,6 +106,6 @@ alembic downgrade -1
 - Миграции и репозитории
 - Тесты (unit + integration)
 
-### TODO
+### Отложено / Backlog
 - Kafka события (UserCreated/UserUpdated)
 - Redis кеширование

@@ -9,7 +9,8 @@ GREEN := \033[0;32m
 YELLOW := \033[0;33m
 RED := \033[0;31m
 NC := \033[0m # No Color
-COMPOSE := docker-compose --env-file .env -f infrastructure/docker-compose.yml
+DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; elif docker compose version >/dev/null 2>&1; then echo "docker compose"; else echo "docker-compose"; fi)
+COMPOSE := $(DOCKER_COMPOSE) --env-file .env -f infrastructure/docker-compose.yml
 COMPOSE_TEST := $(COMPOSE) --profile test
 
 help: ## Show this help message

@@ -14,6 +14,7 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 import structlog
 
 from src.config import settings
@@ -93,6 +94,21 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"{settings.service_name} shutdown complete")
 
 
+async def _check_database_dependency() -> str:
+    """Check that database is reachable."""
+    if base.AsyncSessionLocal is None:
+        return "not_initialized"
+
+    try:
+        async with base.AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception as exc:  # pragma: no cover - defensive health path
+        logger.warning("health.database.unhealthy", error=str(exc))
+        return "unhealthy"
+    else:
+        return "healthy"
+
+
 def create_app() -> FastAPI:
     """
     Factory function для создания FastAPI приложения.
@@ -148,18 +164,29 @@ def create_app() -> FastAPI:
         Returns:
             JSONResponse: Service health status
         """
+        database_status = await _check_database_dependency()
+        kafka_status = "disabled"
+        if settings.kafka_enabled:
+            kafka_status = "healthy" if is_event_publisher_ready() else "unhealthy"
+
+        overall_status = "healthy"
+        if database_status != "healthy":
+            overall_status = "unhealthy"
+        if settings.kafka_enabled and kafka_status != "healthy":
+            overall_status = "unhealthy"
+
         return JSONResponse(
             status_code=200,
             content={
-                "status": "healthy",
+                "status": overall_status,
                 "service": settings.service_name,
                 "version": "0.1.0",
                 "timestamp": datetime.now(UTC).isoformat(),
                 "environment": settings.environment,
                 "dependencies": {
-                    "database": "healthy" if base.AsyncSessionLocal else "not_initialized",
-                    # TODO: Check Redis health
-                    "kafka": "healthy" if is_event_publisher_ready() else "not_initialized",
+                    "database": database_status,
+                    "redis": "deferred",
+                    "kafka": kafka_status,
                 },
             },
         )

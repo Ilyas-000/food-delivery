@@ -150,11 +150,10 @@ class CircuitBreakerMiddleware(BaseHTTPMiddleware):
             service_map = {
                 "auth": "user-service",
                 "users": "user-service",
-                # TODO: Add mappings for other services
-                # "restaurants": "restaurant-service",
-                # "orders": "order-service",
-                # "payments": "payment-service",
-                # "deliveries": "delivery-service",
+                "restaurants": "restaurant-service",
+                "orders": "order-service",
+                "payments": "payment-service",
+                "deliveries": "delivery-service",
             }
             return service_map.get(resource)
         return None

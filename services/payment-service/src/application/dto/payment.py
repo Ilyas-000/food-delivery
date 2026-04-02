@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from src.domain.entities.reservation import PaymentReservation
+from src.domain.entities.reservation import Payment
 
 
 class ReservePaymentDTO(BaseModel):
@@ -16,10 +16,11 @@ class ReservePaymentDTO(BaseModel):
     user_id: UUID
     amount: Decimal
     currency: str = "RUB"
+    idempotency_key: str | None = None
 
 
-class PaymentReservationResponseDTO(BaseModel):
-    """Output payload for reservation state."""
+class PaymentResponseDTO(BaseModel):
+    """Output payload for payment state."""
 
     id: UUID
     order_id: UUID
@@ -29,17 +30,26 @@ class PaymentReservationResponseDTO(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+    idempotency_key: str | None = None
 
     @classmethod
-    def from_entity(cls, reservation: PaymentReservation) -> "PaymentReservationResponseDTO":
+    def from_entity(cls, payment: Payment) -> "PaymentResponseDTO":
         """Build response DTO from domain entity."""
         return cls(
-            id=reservation.id,
-            order_id=reservation.order_id,
-            user_id=reservation.user_id,
-            amount=reservation.amount,
-            currency=reservation.currency,
-            status=reservation.status.value,
-            created_at=reservation.created_at,
-            updated_at=reservation.updated_at,
+            id=payment.id,
+            order_id=payment.order_id,
+            user_id=payment.user_id,
+            amount=payment.amount,
+            currency=payment.currency,
+            status=payment.status.value,
+            created_at=payment.created_at,
+            updated_at=payment.updated_at,
+            idempotency_key=payment.idempotency_key,
         )
+
+
+class PaymentHistoryResponseDTO(BaseModel):
+    """Output payload for payment history."""
+
+    items: list[PaymentResponseDTO]
+    total: int

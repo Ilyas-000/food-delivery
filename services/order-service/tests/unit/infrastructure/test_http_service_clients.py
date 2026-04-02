@@ -101,9 +101,11 @@ async def test_restaurant_client_raises_for_price_mismatch() -> None:
 @pytest.mark.asyncio()
 async def test_payment_client_reserve_and_release_success() -> None:
     reservation_id = str(uuid4())
+    order_id = uuid4()
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "POST":
+            assert request.headers.get("Idempotency-Key") == str(order_id)
             return httpx.Response(status_code=201, json={"reservation_id": reservation_id})
         return httpx.Response(status_code=204)
 
@@ -114,7 +116,7 @@ async def test_payment_client_reserve_and_release_success() -> None:
     )
 
     result = await client.reserve(
-        order_id=uuid4(),
+        order_id=order_id,
         user_id=uuid4(),
         amount=Decimal("450.00"),
         currency="RUB",

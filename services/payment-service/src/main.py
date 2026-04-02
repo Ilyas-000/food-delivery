@@ -14,7 +14,7 @@ def create_app() -> FastAPI:
     """Create configured FastAPI application."""
     app = FastAPI(
         title="Payment Service API",
-        description="Payment reservations for order saga",
+        description="Payment lifecycle service for order saga",
         version="0.1.0",
         debug=settings.debug,
     )

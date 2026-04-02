@@ -5,6 +5,7 @@ Routes requests from clients to appropriate microservices:
 - /api/v1/users/* -> User Service
 - /api/v1/restaurants/* -> Restaurant Service
 - /api/v1/orders/* -> Order Service
+- /api/v1/payments/* -> Payment Service
 """
 
 import json
@@ -531,7 +532,106 @@ async def get_order(
 
 
 # ============================================================================
+# PAYMENT ROUTES (Protected - JWT required)
+# ============================================================================
+
+
+@router.post("/api/v1/payments/reservations")
+async def reserve_payment(
+    request: Request,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Reserve payment (proxied to Payment Service)."""
+    return await proxy_to_service(
+        request,
+        settings.payment_service_url,
+        "api/v1/payments/reservations",
+        timeout=settings.proxy_timeout_payment,
+        user=_user,
+    )
+
+
+@router.delete("/api/v1/payments/reservations/{reservation_id}")
+async def release_payment(
+    request: Request,
+    reservation_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Release payment reservation (proxied to Payment Service)."""
+    return await proxy_to_service(
+        request,
+        settings.payment_service_url,
+        f"api/v1/payments/reservations/{reservation_id}",
+        timeout=settings.proxy_timeout_payment,
+        user=_user,
+    )
+
+
+@router.get("/api/v1/payments/history")
+async def get_payment_history(
+    request: Request,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Get payment history (proxied to Payment Service)."""
+    return await proxy_to_service(
+        request,
+        settings.payment_service_url,
+        "api/v1/payments/history",
+        timeout=settings.proxy_timeout_payment,
+        user=_user,
+    )
+
+
+@router.get("/api/v1/payments/{payment_id}")
+async def get_payment(
+    request: Request,
+    payment_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Get payment by id (proxied to Payment Service)."""
+    return await proxy_to_service(
+        request,
+        settings.payment_service_url,
+        f"api/v1/payments/{payment_id}",
+        timeout=settings.proxy_timeout_payment,
+        user=_user,
+    )
+
+
+@router.post("/api/v1/payments/{payment_id}/confirm")
+async def confirm_payment(
+    request: Request,
+    payment_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Confirm payment (proxied to Payment Service)."""
+    return await proxy_to_service(
+        request,
+        settings.payment_service_url,
+        f"api/v1/payments/{payment_id}/confirm",
+        timeout=settings.proxy_timeout_payment,
+        user=_user,
+    )
+
+
+@router.post("/api/v1/payments/{payment_id}/refund")
+async def refund_payment(
+    request: Request,
+    payment_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Refund payment (proxied to Payment Service)."""
+    return await proxy_to_service(
+        request,
+        settings.payment_service_url,
+        f"api/v1/payments/{payment_id}/refund",
+        timeout=settings.proxy_timeout_payment,
+        user=_user,
+    )
+
+
+# ============================================================================
 # CATCH-ALL ROUTE (for future services)
 # ============================================================================
-# TODO: When adding Payment/Delivery services, add specific
+# TODO: When adding Delivery service, add specific
 # routes above or use a more sophisticated routing mechanism.

@@ -1,22 +1,34 @@
-"""Repository contract for payment reservations."""
+"""Repository contract for payments."""
 
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from src.domain.entities.reservation import PaymentReservation
+from src.domain.entities.reservation import Payment
 
 
-class IReservationRepository(ABC):
-    """Persistence contract for reservation aggregates."""
-
-    @abstractmethod
-    async def create(self, reservation: PaymentReservation) -> PaymentReservation:
-        """Persist newly created reservation."""
+class IPaymentRepository(ABC):
+    """Persistence contract for payment aggregates."""
 
     @abstractmethod
-    async def get_by_id(self, reservation_id: UUID) -> PaymentReservation | None:
-        """Get reservation by identifier."""
+    async def create(self, payment: Payment) -> Payment:
+        """Persist newly created payment."""
 
     @abstractmethod
-    async def update(self, reservation: PaymentReservation) -> PaymentReservation:
-        """Persist updated reservation state."""
+    async def get_by_id(self, payment_id: UUID) -> Payment | None:
+        """Get payment by identifier."""
+
+    @abstractmethod
+    async def update(self, payment: Payment) -> Payment:
+        """Persist updated payment state."""
+
+    @abstractmethod
+    async def get_by_idempotency_key(self, idempotency_key: str) -> Payment | None:
+        """Get payment by idempotency key."""
+
+    @abstractmethod
+    async def list(
+        self,
+        order_id: UUID | None = None,
+        user_id: UUID | None = None,
+    ) -> list[Payment]:
+        """List payments with optional filters."""

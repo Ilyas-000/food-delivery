@@ -340,6 +340,7 @@ services:
       - user-service
       - restaurant-service
       - order-service
+      - payment-service
     ports:
       - "8000:8000"
     environment:
@@ -365,6 +366,7 @@ services:
       GATEWAY_USER_SERVICE_URL: ${GATEWAY_USER_SERVICE_URL:-http://user-service:8001}
       GATEWAY_RESTAURANT_SERVICE_URL: ${GATEWAY_RESTAURANT_SERVICE_URL:-http://restaurant-service:8002}
       GATEWAY_ORDER_SERVICE_URL: ${GATEWAY_ORDER_SERVICE_URL:-http://order-service:8003}
+      GATEWAY_PAYMENT_SERVICE_URL: ${GATEWAY_PAYMENT_SERVICE_URL:-http://payment-service:8004}
 
       # Circuit Breaker
       GATEWAY_CIRCUIT_BREAKER_FAILURE_THRESHOLD: 5
@@ -429,6 +431,7 @@ services:
       ORDER_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${ORDER_SERVICE_DB_USER:-order_service_user}:${ORDER_SERVICE_DB_PASSWORD:-order_service_password_change_me}@postgres:5432/${ORDER_SERVICE_TEST_DB_NAME:-order_service_test_db}
       GATEWAY_USER_SERVICE_URL: http://user-service:8001
       GATEWAY_ORDER_SERVICE_URL: http://order-service:8003
+      GATEWAY_PAYMENT_SERVICE_URL: http://payment-service:8004
       GATEWAY_REDIS_HOST: redis
       GATEWAY_REDIS_PORT: 6379
       GATEWAY_REDIS_DB: 15

@@ -41,8 +41,7 @@ class Settings(BaseSettings):
     user_service_url: str = "http://user-service:8001"
     restaurant_service_url: str = "http://restaurant-service:8002"
     order_service_url: str = "http://order-service:8003"
-    # TODO: Add other services when implementing Phase 4+
-    # payment_service_url: str = "http://payment-service:8004"
+    payment_service_url: str = "http://payment-service:8004"
     # delivery_service_url: str = "http://delivery-service:8005"
 
     # Proxy timeouts (seconds)
@@ -51,6 +50,7 @@ class Settings(BaseSettings):
     proxy_timeout_user: float = 10.0
     proxy_timeout_restaurant: float = 10.0
     proxy_timeout_order: float = 10.0
+    proxy_timeout_payment: float = 10.0
 
     # Circuit Breaker settings
     circuit_breaker_failure_threshold: int = 5

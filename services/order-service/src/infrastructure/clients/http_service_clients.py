@@ -38,6 +38,7 @@ class _BaseHttpServiceClient:
         method: str,
         path: str,
         json_body: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> httpx.Response:
         try:
             async with httpx.AsyncClient(
@@ -45,7 +46,12 @@ class _BaseHttpServiceClient:
                 timeout=self._timeout_seconds,
                 transport=self._transport,
             ) as client:
-                return await client.request(method=method, url=path, json=json_body)
+                return await client.request(
+                    method=method,
+                    url=path,
+                    json=json_body,
+                    headers=headers,
+                )
         except httpx.TimeoutException as exc:
             raise RuntimeError(f"request timeout calling '{self._base_url}{path}'") from exc
         except httpx.RequestError as exc:
@@ -100,6 +106,7 @@ class PaymentServiceHttpClient(_BaseHttpServiceClient, IPaymentServiceClient):
                 "amount": str(amount),
                 "currency": currency,
             },
+            headers={"Idempotency-Key": str(order_id)},
         )
 
         if response.status_code >= HTTP_INTERNAL_SERVER_ERROR:

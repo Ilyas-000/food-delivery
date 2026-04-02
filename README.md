@@ -10,7 +10,7 @@
 - ✅ `user-service`
 - ✅ `restaurant-service`
 - 🚧 `order-service` (saga orchestration, базовый API)
-- 🚧 `payment-service` (saga contract)
+- ✅ `payment-service` (lifecycle + saga compatibility)
 - 🚧 `delivery-service` (saga contract)
 - ⚪ `notification-service`, `analytics-service`, `review-service` — в roadmap
 
@@ -22,7 +22,7 @@ Clients
       -> User Service (8001)
       -> Restaurant Service (8002)
       -> Order Service (8003)
-           -> Payment Service (8004, reservation contract)
+           -> Payment Service (8004, lifecycle)
            -> Delivery Service (8005, assignment contract)
 
 Infra:
@@ -46,7 +46,7 @@ Infra:
 | User Service | 8001 | ✅ | registration, login, profile |
 | Restaurant Service | 8002 | ✅ | restaurants and menu management |
 | Order Service | 8003 | 🚧 | order creation and saga orchestration |
-| Payment Service | 8004 | 🚧 | payment reservation/release contract |
+| Payment Service | 8004 | ✅ | payment reserve/confirm/refund/history + idempotency |
 | Delivery Service | 8005 | 🚧 | courier assignment/cancel contract |
 | Notification Service | 8006 | ⚪ | planned |
 | Analytics Service | 8007 | ⚪ | planned |

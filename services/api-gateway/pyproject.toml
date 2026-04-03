@@ -7,6 +7,7 @@ dependencies = [
     "food-delivery-shared",
     "fastapi==0.115.6",
     "uvicorn[standard]==0.32.1",
+    "websockets==14.1",
     "httpx==0.28.1",
     "pyjwt==2.10.1",
     "redis[hiredis]==5.2.1",
@@ -94,7 +95,7 @@ markers = [
 [tool.coverage.run]
 data_file = "/tmp/coverage-api-gateway"
 source = ["src"]
-omit = ["tests/*", "**/__pycache__/*"]
+omit = ["tests/*", "**/__pycache__/*", "**/__init__.py"]
 
 [tool.coverage.report]
 exclude_lines = [

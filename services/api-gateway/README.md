@@ -8,6 +8,8 @@
   - User Service (`/api/v1/auth/*`, `/api/v1/users/*`)
   - Restaurant Service (`/api/v1/restaurants/*`)
   - Order Service (`/api/v1/orders/*`)
+  - Payment Service (`/api/v1/payments/*`)
+  - Delivery Service (`/api/v1/deliveries/*`, `/ws/orders/*`)
 - JWT валидация для protected маршрутов
 - Rate limiting на Redis (global auth, login, refresh)
 - Circuit breaker middleware
@@ -22,7 +24,12 @@ Client
       -> User Service
       -> Restaurant Service
       -> Order Service
+      -> Payment Service
+      -> Delivery Service
 ```
+
+Service-to-service orchestration (например saga) выполняется напрямую между сервисами,
+минуя gateway.
 
 ## Запуск
 
@@ -48,6 +55,8 @@ make dev-gateway
 - `GATEWAY_USER_SERVICE_URL=http://localhost:8001`
 - `GATEWAY_RESTAURANT_SERVICE_URL=http://localhost:8002`
 - `GATEWAY_ORDER_SERVICE_URL=http://localhost:8003`
+- `GATEWAY_PAYMENT_SERVICE_URL=http://localhost:8004`
+- `GATEWAY_DELIVERY_SERVICE_URL=http://localhost:8005`
 
 ## Основные endpoints
 
@@ -83,6 +92,21 @@ make dev-gateway
 - `POST /api/v1/orders`
 - `GET /api/v1/orders/{order_id}`
 
+### Payments (protected)
+- `POST /api/v1/payments/reservations`
+- `DELETE /api/v1/payments/reservations/{reservation_id}`
+- `GET /api/v1/payments/history`
+- `GET /api/v1/payments/{payment_id}`
+- `POST /api/v1/payments/{payment_id}/confirm`
+- `POST /api/v1/payments/{payment_id}/refund`
+
+### Delivery (protected REST + public WS stream)
+- `POST /api/v1/deliveries/assignments`
+- `DELETE /api/v1/deliveries/assignments/{assignment_id}`
+- `POST /api/v1/deliveries/location`
+- `POST /api/v1/deliveries/{order_id}/complete`
+- `WS /ws/orders/{order_id}`
+
 ## Конфигурация
 
 Смотри `.env.example`. Ключевые параметры:
@@ -91,12 +115,14 @@ make dev-gateway
 - `GATEWAY_USER_SERVICE_URL`
 - `GATEWAY_RESTAURANT_SERVICE_URL`
 - `GATEWAY_ORDER_SERVICE_URL`
+- `GATEWAY_PAYMENT_SERVICE_URL`
+- `GATEWAY_DELIVERY_SERVICE_URL`
+- `GATEWAY_PROXY_TIMEOUT_DELIVERY`
 - `GATEWAY_RATE_LIMIT_ENABLED`
 
 ## Ограничения текущей фазы
 
-- Прямые proxy-роуты к Payment/Delivery из gateway пока не добавлены.
-- Payment/Delivery используются Order Service в saga HTTP flow.
+- Internal saga flow использует direct service-to-service вызовы (`order-service -> payment/delivery`).
 
 ## Тестирование
 

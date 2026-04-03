@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, status
 from src.application.dto.order import CreateOrderDTO, CreateOrderItemDTO
 from src.application.use_cases.create_order import CreateOrderUseCase
 from src.application.use_cases.get_order import GetOrderUseCase
+from src.infrastructure.events.publisher import publish_event
 from src.interface.api.v1.schemas.order import CreateOrderRequest, OrderResponse
 from src.interface.dependencies.order import get_create_order_use_case, get_get_order_use_case
 
@@ -35,6 +36,29 @@ async def create_order(
     )
 
     result = await use_case.execute(dto)
+
+    await publish_event(
+        event_type="order-service.order.created",
+        aggregate_type="order",
+        aggregate_id=str(result.id),
+        user_id=str(result.user_id),
+        payload={
+            "restaurant_id": str(result.restaurant_id),
+            "total_amount": str(result.total_amount),
+            "status": result.status.value,
+        },
+    )
+    await publish_event(
+        event_type="order-service.order.confirmed",
+        aggregate_type="order",
+        aggregate_id=str(result.id),
+        user_id=str(result.user_id),
+        payload={
+            "restaurant_id": str(result.restaurant_id),
+            "total_amount": str(result.total_amount),
+            "status": result.status.value,
+        },
+    )
     return OrderResponse.from_dto(result)
 
 

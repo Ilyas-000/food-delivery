@@ -11,7 +11,7 @@
 - ✅ `restaurant-service`
 - 🚧 `order-service` (saga orchestration, базовый API)
 - ✅ `payment-service` (lifecycle + saga compatibility)
-- 🚧 `delivery-service` (saga contract)
+- ✅ `delivery-service` (contract lifecycle + tracking + gateway WS proxy)
 - ⚪ `notification-service`, `analytics-service`, `review-service` — в roadmap
 
 ## Архитектура
@@ -22,21 +22,34 @@ Clients
       -> User Service (8001)
       -> Restaurant Service (8002)
       -> Order Service (8003)
-           -> Payment Service (8004, lifecycle)
-           -> Delivery Service (8005, assignment contract)
+      -> Payment Service (8004, public payment API)
+      -> Delivery Service (8005, public delivery API + WS)
+
+Internal service-to-service:
+Order Service (8003)
+  -> Payment Service (8004, saga contract)
+  -> Delivery Service (8005, saga contract)
 
 Infra:
 - PostgreSQL (service databases)
-- Redis (rate limiting + token storage)
+- Redis (rate limiting + token storage + Pub/Sub for WS fanout)
 - Kafka + Kafka UI (event bus)
 ```
 
 Ключевые принципы:
 
 - единая точка входа через API Gateway;
+- внутренние сервисные вызовы идут напрямую между сервисами;
 - разделение сервисов и контрактов;
 - Clean Architecture в доменных сервисах (`domain -> application -> infrastructure -> interface`);
 - единые API-конвенции и формат ошибок.
+
+## Коммуникационная модель
+
+- Внешние клиенты (`web/mobile/courier app`) вызывают сервисы через API Gateway.
+- Внутренние saga-шаги выполняются напрямую (`order-service -> payment-service`, `order-service -> delivery-service`).
+- Kafka используется для надежных межсервисных событий.
+- Redis Pub/Sub используется для real-time fanout в delivery tracking по WebSocket.
 
 ## Сервисы
 
@@ -47,7 +60,7 @@ Infra:
 | Restaurant Service | 8002 | ✅ | restaurants and menu management |
 | Order Service | 8003 | 🚧 | order creation and saga orchestration |
 | Payment Service | 8004 | ✅ | payment reserve/confirm/refund/history + idempotency |
-| Delivery Service | 8005 | 🚧 | courier assignment/cancel contract |
+| Delivery Service | 8005 | ✅ | courier lifecycle + tracking (Phase 5 completed, contract-stage) |
 | Notification Service | 8006 | ⚪ | planned |
 | Analytics Service | 8007 | ⚪ | planned |
 | Review Service | 8008 | ⚪ | planned |

@@ -11,6 +11,14 @@ When code changes, keep this file in sync.
 - Interface (API, Kafka consumers) depends on Application.
 - Never import SQLAlchemy (or any infrastructure) inside application or domain.
 
+## Communication Boundaries
+
+- External (north-south) traffic goes through API Gateway only.
+- Internal service-to-service (east-west) traffic is direct between services, not через gateway.
+- Saga HTTP steps (for example `order-service -> payment-service/delivery-service`) are internal contracts.
+- Kafka is the default transport for durable inter-service domain events.
+- Redis Pub/Sub is for low-latency ephemeral fanout (for example delivery WebSocket updates), not a replacement for durable event integration.
+
 ## Data Modeling & Validation
 
 - Domain uses plain classes/dataclasses and Value Objects for business rules.

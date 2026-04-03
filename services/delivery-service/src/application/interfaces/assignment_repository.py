@@ -18,5 +18,9 @@ class IAssignmentRepository(ABC):
         """Get assignment by id."""
 
     @abstractmethod
+    async def get_by_order_id(self, order_id: UUID) -> DeliveryAssignment | None:
+        """Get latest assignment by order id."""
+
+    @abstractmethod
     async def update(self, assignment: DeliveryAssignment) -> DeliveryAssignment:
         """Persist updated assignment."""

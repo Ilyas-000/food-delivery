@@ -16,6 +16,8 @@ Order creation and saga orchestration service.
 - Saga flow backend is configurable via `ORDER_SERVICE_SAGA_BACKEND`:
   - `mock` (default) for local/test mode
   - `http` to call Restaurant/Payment/Delivery service APIs
+- Internal orchestration calls are direct service-to-service (not through API Gateway).
+- External client access to order API is through API Gateway.
 - HTTP mode expects service contracts:
   - `POST/DELETE /api/v1/payments/reservations`
   - `POST/DELETE /api/v1/deliveries/assignments`

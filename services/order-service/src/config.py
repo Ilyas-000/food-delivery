@@ -16,6 +16,14 @@ _BASE_ENV_CONFIG = cast(
 )
 
 
+class KafkaSettings(BaseSettings):
+    """Shared Kafka settings."""
+
+    model_config = SettingsConfigDict(env_prefix="KAFKA_", **_BASE_ENV_CONFIG)
+
+    bootstrap_servers: str = "localhost:9093"
+
+
 class Settings(BaseSettings):
     """Runtime configuration for Order Service."""
 
@@ -45,11 +53,17 @@ class Settings(BaseSettings):
     database_max_overflow: int = 20
     database_echo: bool = False
     test_database_url: str | None = None
+    kafka_enabled: bool = False
 
     @cached_property
     def postgres(self) -> "PostgresSettings":
         """Get shared PostgreSQL settings."""
         return PostgresSettings()
+
+    @cached_property
+    def kafka(self) -> "KafkaSettings":
+        """Get shared Kafka settings."""
+        return KafkaSettings()
 
     @property
     def database_url(self) -> str:

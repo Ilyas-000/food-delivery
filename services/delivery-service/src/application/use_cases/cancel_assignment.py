@@ -3,7 +3,10 @@
 from uuid import UUID
 
 from src.application.interfaces.assignment_repository import IAssignmentRepository
-from src.domain.exceptions.delivery import DeliveryAssignmentNotFoundError
+from src.domain.exceptions.delivery import (
+    DeliveryAssignmentNotFoundError,
+    DeliveryInvalidStateError,
+)
 
 
 class CancelAssignmentUseCase:
@@ -18,5 +21,8 @@ class CancelAssignmentUseCase:
         if assignment is None:
             raise DeliveryAssignmentNotFoundError(f"assignment '{assignment_id}' not found")
 
-        assignment.cancel()
+        try:
+            assignment.cancel()
+        except ValueError as exc:
+            raise DeliveryInvalidStateError(str(exc)) from exc
         await self._repository.update(assignment)

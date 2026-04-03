@@ -9,10 +9,13 @@ authors = [
 ]
 
 dependencies = [
+    "food-delivery-shared",
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.25.0",
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
+    "redis[hiredis]>=5.0.0",
+    "structlog>=24.1.0",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +36,9 @@ packages = ["src"]
 [tool.ruff]
 extend = "../../pyproject.toml"
 
+[tool.uv.sources]
+food-delivery-shared = { workspace = true }
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
@@ -48,3 +54,9 @@ addopts = [
 
 [tool.coverage.run]
 data_file = "/tmp/coverage-delivery-service"
+source = ["src"]
+omit = [
+    "tests/*",
+    "**/__pycache__/*",
+    "**/__init__.py",
+]

@@ -19,6 +19,12 @@
 | 3 | Endpoint-specific rate limits для Phase 2+ | Pending (Phase 2) |
 | 4 | Документация JWT секретов в .env.example | Skipped (не нужно) |
 
+## Architecture Alignment
+
+| # | Issue | Status |
+|---|-------|--------|
+| 1 | Delivery public entrypoints bypass gateway (`/api/v1/deliveries/*`, `/ws/orders/{order_id}`) | ✅ Done |
+
 ---
 
 ## RequestLoggingMiddleware

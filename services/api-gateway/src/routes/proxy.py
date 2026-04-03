@@ -6,13 +6,18 @@ Routes requests from clients to appropriate microservices:
 - /api/v1/restaurants/* -> Restaurant Service
 - /api/v1/orders/* -> Order Service
 - /api/v1/payments/* -> Payment Service
+- /api/v1/deliveries/* -> Delivery Service
+- /ws/orders/* -> Delivery Service WebSocket
 """
 
+import asyncio
 import json
+from typing import Any
 
 import httpx
 import structlog
-from fastapi import APIRouter, Depends, Request, Response
+import websockets
+from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from shared.common.jwt import decode_token_unverified
 
@@ -133,6 +138,55 @@ async def proxy_to_service(
                 }
             },
         )
+
+
+def _to_websocket_url(base_url: str, path: str) -> str:
+    normalized = base_url.rstrip("/")
+    if normalized.startswith("https://"):
+        normalized = f"wss://{normalized.removeprefix('https://')}"
+    elif normalized.startswith("http://"):
+        normalized = f"ws://{normalized.removeprefix('http://')}"
+    return f"{normalized}/{path.lstrip('/')}"
+
+
+async def _bridge_websockets(client_ws: WebSocket, backend_ws: Any) -> None:
+    async def client_to_backend() -> None:
+        while True:
+            message = await client_ws.receive()
+            message_type = message.get("type")
+            if message_type == "websocket.disconnect":
+                break
+
+            text = message.get("text")
+            if text is not None:
+                await backend_ws.send(text)
+                continue
+
+            payload = message.get("bytes")
+            if payload is not None:
+                await backend_ws.send(payload)
+
+    async def backend_to_client() -> None:
+        while True:
+            payload = await backend_ws.recv()
+            if isinstance(payload, bytes):
+                await client_ws.send_bytes(payload)
+            else:
+                await client_ws.send_text(payload)
+
+    client_to_backend_task = asyncio.create_task(client_to_backend())
+    backend_to_client_task = asyncio.create_task(backend_to_client())
+    done, pending = await asyncio.wait(
+        {client_to_backend_task, backend_to_client_task},
+        return_when=asyncio.FIRST_COMPLETED,
+    )
+
+    for task in pending:
+        task.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
+    for task in done:
+        await asyncio.gather(task, return_exceptions=True)
 
 
 @router.post("/api/v1/auth/register")
@@ -631,7 +685,93 @@ async def refund_payment(
 
 
 # ============================================================================
+# DELIVERY ROUTES (Protected - JWT required)
+# ============================================================================
+
+
+@router.post("/api/v1/deliveries/assignments")
+async def assign_delivery_courier(
+    request: Request,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Assign delivery courier (proxied to Delivery Service)."""
+    return await proxy_to_service(
+        request,
+        settings.delivery_service_url,
+        "api/v1/deliveries/assignments",
+        timeout=settings.proxy_timeout_delivery,
+        user=_user,
+    )
+
+
+@router.delete("/api/v1/deliveries/assignments/{assignment_id}")
+async def cancel_delivery_assignment(
+    request: Request,
+    assignment_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Cancel delivery assignment (proxied to Delivery Service)."""
+    return await proxy_to_service(
+        request,
+        settings.delivery_service_url,
+        f"api/v1/deliveries/assignments/{assignment_id}",
+        timeout=settings.proxy_timeout_delivery,
+        user=_user,
+    )
+
+
+@router.post("/api/v1/deliveries/location")
+async def update_delivery_location(
+    request: Request,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Update delivery location (proxied to Delivery Service)."""
+    return await proxy_to_service(
+        request,
+        settings.delivery_service_url,
+        "api/v1/deliveries/location",
+        timeout=settings.proxy_timeout_delivery,
+        user=_user,
+    )
+
+
+@router.post("/api/v1/deliveries/{order_id}/complete")
+async def complete_delivery(
+    request: Request,
+    order_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Complete delivery (proxied to Delivery Service)."""
+    return await proxy_to_service(
+        request,
+        settings.delivery_service_url,
+        f"api/v1/deliveries/{order_id}/complete",
+        timeout=settings.proxy_timeout_delivery,
+        user=_user,
+    )
+
+
+@router.websocket("/ws/orders/{order_id}")
+async def proxy_delivery_order_tracking(websocket: WebSocket, order_id: str) -> None:
+    """Proxy order tracking websocket to Delivery Service."""
+    await websocket.accept()
+    target_url = _to_websocket_url(
+        settings.delivery_service_url,
+        f"/ws/orders/{order_id}",
+    )
+
+    try:
+        async with websockets.connect(
+            target_url, open_timeout=settings.proxy_timeout_delivery
+        ) as backend_ws:
+            await _bridge_websockets(websocket, backend_ws)
+    except WebSocketDisconnect:
+        return
+    except Exception:
+        await websocket.close(code=1011)
+
+
+# ============================================================================
 # CATCH-ALL ROUTE (for future services)
 # ============================================================================
-# TODO: When adding Delivery service, add specific
-# routes above or use a more sophisticated routing mechanism.
+# TODO: Add centralized dynamic routing if route list becomes too large.

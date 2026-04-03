@@ -48,3 +48,9 @@ addopts = [
 
 [tool.coverage.run]
 data_file = "/tmp/coverage-payment-service"
+source = ["src"]
+omit = [
+    "tests/*",
+    "**/__pycache__/*",
+    "**/__init__.py",
+]

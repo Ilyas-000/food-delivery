@@ -432,6 +432,12 @@ Content-Type, Authorization, X-Request-ID, Idempotency-Key
 
 ### Connection URL
 
+Public URL (through API Gateway):
+```
+ws://localhost:8000/ws/orders/{order_id}
+```
+
+Internal service URL (service-to-service/dev diagnostics):
 ```
 ws://localhost:8005/ws/orders/{order_id}
 ```

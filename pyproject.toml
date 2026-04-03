@@ -202,6 +202,7 @@ source = ["services", "shared"]
 omit = [
     "*/tests/*",
     "*/__pycache__/*",
+    "*/__init__.py",
     "*/venv/*",
     "*/.venv/*",
     "*/migrations/*",

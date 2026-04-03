@@ -26,7 +26,8 @@ repos:
           - aiokafka
           - pydantic>=2.5.0
           - pydantic-settings>=2.1.0
-          - fastapi>=0.109.0
+          - fastapi==0.109.0
+          - websockets
           - httpx>=0.25.2
           - uvicorn>=0.25.0
           - pyjwt
@@ -47,7 +48,7 @@ repos:
           - aiokafka
           - pydantic>=2.5.0
           - pydantic-settings>=2.1.0
-          - fastapi>=0.109.0
+          - fastapi==0.109.0
           - httpx>=0.25.2
           - uvicorn>=0.25.0
           - pyjwt
@@ -68,7 +69,7 @@ repos:
           - aiokafka
           - pydantic>=2.5.0
           - pydantic-settings>=2.1.0
-          - fastapi>=0.109.0
+          - fastapi==0.109.0
           - httpx>=0.25.2
           - uvicorn>=0.25.0
           - pyjwt

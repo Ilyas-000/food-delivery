@@ -5,17 +5,25 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response, status
 
-from src.application.dto.delivery import AssignCourierDTO
+from src.application.dto.delivery import AssignCourierDTO, UpdateDeliveryLocationDTO
 from src.application.use_cases.assign_courier import AssignCourierUseCase
 from src.application.use_cases.cancel_assignment import CancelAssignmentUseCase
+from src.application.use_cases.complete_delivery import CompleteDeliveryUseCase
+from src.application.use_cases.update_delivery_location import UpdateDeliveryLocationUseCase
+from src.infrastructure.events.publisher import publish_event
 from src.interface.api.v1.schemas.delivery import (
     AssignCourierRequest,
     DeliveryAssignmentResponse,
+    UpdateDeliveryLocationRequest,
 )
 from src.interface.dependencies.delivery import (
     get_assign_courier_use_case,
     get_cancel_assignment_use_case,
+    get_complete_delivery_use_case,
+    get_order_tracking_broadcaster,
+    get_update_delivery_location_use_case,
 )
+from src.interface.realtime.order_tracking_broadcaster import OrderTrackingBroadcaster
 
 router = APIRouter(prefix="/deliveries", tags=["deliveries"])
 
@@ -35,6 +43,16 @@ async def assign_courier(
         restaurant_id=request.restaurant_id,
     )
     result = await use_case.execute(dto)
+    await publish_event(
+        event_type="delivery-service.delivery.assigned",
+        aggregate_type="delivery",
+        aggregate_id=str(result.id),
+        payload={
+            "order_id": str(result.order_id),
+            "restaurant_id": str(result.restaurant_id),
+            "status": result.status,
+        },
+    )
     return DeliveryAssignmentResponse.from_dto(result)
 
 
@@ -49,3 +67,91 @@ async def cancel_assignment(
     """Cancel delivery assignment."""
     await use_case.execute(assignment_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/location",
+    response_model=DeliveryAssignmentResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_location(
+    request: UpdateDeliveryLocationRequest,
+    use_case: Annotated[
+        UpdateDeliveryLocationUseCase,
+        Depends(get_update_delivery_location_use_case),
+    ],
+    broadcaster: Annotated[OrderTrackingBroadcaster, Depends(get_order_tracking_broadcaster)],
+) -> DeliveryAssignmentResponse:
+    """Update courier location and push real-time updates for order."""
+    dto = UpdateDeliveryLocationDTO(
+        order_id=request.order_id,
+        latitude=request.latitude,
+        longitude=request.longitude,
+    )
+    result = await use_case.execute(dto)
+    await publish_event(
+        event_type="delivery-service.delivery.location_updated",
+        aggregate_type="delivery",
+        aggregate_id=str(result.id),
+        payload={
+            "order_id": str(result.order_id),
+            "status": result.status,
+            "latitude": result.latitude,
+            "longitude": result.longitude,
+        },
+    )
+
+    await broadcaster.broadcast(
+        order_id=result.order_id,
+        event={
+            "type": "location_update",
+            "data": {
+                "order_id": str(result.order_id),
+                "assignment_id": str(result.id),
+                "status": result.status,
+                "latitude": result.latitude,
+                "longitude": result.longitude,
+                "timestamp": result.updated_at.isoformat(),
+            },
+        },
+    )
+    return DeliveryAssignmentResponse.from_dto(result)
+
+
+@router.post(
+    "/{order_id}/complete",
+    response_model=DeliveryAssignmentResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def complete_delivery(
+    order_id: UUID,
+    use_case: Annotated[CompleteDeliveryUseCase, Depends(get_complete_delivery_use_case)],
+    broadcaster: Annotated[OrderTrackingBroadcaster, Depends(get_order_tracking_broadcaster)],
+) -> DeliveryAssignmentResponse:
+    """Complete delivery for order."""
+    result = await use_case.execute(order_id)
+    await publish_event(
+        event_type="delivery-service.delivery.completed",
+        aggregate_type="delivery",
+        aggregate_id=str(result.id),
+        payload={
+            "order_id": str(result.order_id),
+            "status": result.status,
+            "delivered_at": result.delivered_at.isoformat() if result.delivered_at else None,
+        },
+    )
+
+    await broadcaster.broadcast(
+        order_id=result.order_id,
+        event={
+            "type": "delivery_completed",
+            "data": {
+                "order_id": str(result.order_id),
+                "assignment_id": str(result.id),
+                "status": result.status,
+                "delivered_at": result.delivered_at.isoformat() if result.delivered_at else None,
+                "timestamp": result.updated_at.isoformat(),
+            },
+        },
+    )
+    return DeliveryAssignmentResponse.from_dto(result)

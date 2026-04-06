@@ -1,3 +1,5 @@
+# mypy: disable-error-code=misc
+
 from __future__ import annotations
 
 from collections.abc import Generator
@@ -75,9 +77,9 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
         _STATS.failed += 1
 
 
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)  # type: ignore[misc]
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_terminal_summary(
-    terminalreporter: pytest.TerminalReporter,
+    terminalreporter: Any,
     config: pytest.Config,
 ) -> Generator[None, None, None]:
     cov_plugin = _get_cov_plugin(config)
@@ -90,7 +92,7 @@ def pytest_terminal_summary(
     _render_summary(terminalreporter, duration, cov_total)
 
 
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)  # type: ignore[misc]
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_sessionfinish(
     session: pytest.Session,
     exitstatus: int,
@@ -132,7 +134,7 @@ def _get_cov_plugin(config: pytest.Config) -> _CovPlugin | None:
 
 
 def _render_summary(
-    terminalreporter: pytest.TerminalReporter,
+    terminalreporter: Any,
     duration: float,
     coverage: float | None,
 ) -> None:

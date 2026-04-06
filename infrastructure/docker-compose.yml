@@ -93,6 +93,26 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: food-delivery-clickhouse
+    restart: unless-stopped
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DATABASE:-analytics_db}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+    volumes:
+      - ./docker/clickhouse/default-user.xml:/etc/clickhouse-server/users.d/default-user.xml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
   pgadmin:
     image: dpage/pgadmin4:8
     container_name: food-delivery-pgadmin
@@ -374,6 +394,49 @@ services:
       retries: 3
       start_period: 10s
 
+  analytics-service:
+    build:
+      context: ..
+      dockerfile: services/analytics-service/Dockerfile
+    container_name: food-delivery-analytics-service
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "8007:8007"
+    environment:
+      ANALYTICS_SERVICE_SERVICE_NAME: analytics-service
+      ANALYTICS_SERVICE_ENVIRONMENT: ${ENVIRONMENT:-development}
+      ANALYTICS_SERVICE_DEBUG: ${DEBUG:-true}
+      ANALYTICS_SERVICE_API_HOST: 0.0.0.0
+      ANALYTICS_SERVICE_API_PORT: 8007
+      ANALYTICS_SERVICE_API_PREFIX: /api/v1
+      ANALYTICS_SERVICE_KAFKA_ENABLED: ${ANALYTICS_SERVICE_KAFKA_ENABLED:-true}
+      ANALYTICS_SERVICE_CONSUMER_GROUP: ${ANALYTICS_SERVICE_CONSUMER_GROUP:-analytics-service-group}
+      ANALYTICS_SERVICE_STORAGE_BACKEND: ${ANALYTICS_SERVICE_STORAGE_BACKEND:-clickhouse}
+      ANALYTICS_SERVICE_CLICKHOUSE_TABLE: ${ANALYTICS_SERVICE_CLICKHOUSE_TABLE:-analytics_events}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_HTTP_PORT: 8123
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-analytics_db}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+    volumes:
+      - ../services/analytics-service/src:/app/services/analytics-service/src:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8007/health', timeout=5).read()\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   api-gateway:
     build:
       context: ..
@@ -386,6 +449,7 @@ services:
       - restaurant-service
       - order-service
       - payment-service
+      - analytics-service
     ports:
       - "8000:8000"
     environment:
@@ -412,6 +476,8 @@ services:
       GATEWAY_RESTAURANT_SERVICE_URL: ${GATEWAY_RESTAURANT_SERVICE_URL:-http://restaurant-service:8002}
       GATEWAY_ORDER_SERVICE_URL: ${GATEWAY_ORDER_SERVICE_URL:-http://order-service:8003}
       GATEWAY_PAYMENT_SERVICE_URL: ${GATEWAY_PAYMENT_SERVICE_URL:-http://payment-service:8004}
+      GATEWAY_DELIVERY_SERVICE_URL: ${GATEWAY_DELIVERY_SERVICE_URL:-http://delivery-service:8005}
+      GATEWAY_ANALYTICS_SERVICE_URL: ${GATEWAY_ANALYTICS_SERVICE_URL:-http://analytics-service:8007}
 
       # Circuit Breaker
       GATEWAY_CIRCUIT_BREAKER_FAILURE_THRESHOLD: 5
@@ -477,6 +543,11 @@ services:
       GATEWAY_USER_SERVICE_URL: http://user-service:8001
       GATEWAY_ORDER_SERVICE_URL: http://order-service:8003
       GATEWAY_PAYMENT_SERVICE_URL: http://payment-service:8004
+      GATEWAY_DELIVERY_SERVICE_URL: http://delivery-service:8005
+      GATEWAY_ANALYTICS_SERVICE_URL: http://analytics-service:8007
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_HTTP_PORT: 8123
+      ANALYTICS_SERVICE_STORAGE_BACKEND: clickhouse
       GATEWAY_REDIS_HOST: redis
       GATEWAY_REDIS_PORT: 6379
       GATEWAY_REDIS_DB: 15

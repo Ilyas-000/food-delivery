@@ -13,7 +13,8 @@
 - ✅ `payment-service` (lifecycle + saga compatibility)
 - ✅ `delivery-service` (contract lifecycle + tracking + gateway WS proxy)
 - ✅ `notification-service` (event-driven mock email/push, Phase 6 completed)
-- ⚪ `analytics-service`, `review-service` — в roadmap
+- ✅ `analytics-service` (Phase 7 completed: Kafka ingestion + ClickHouse + overview/events API)
+- ⚪ `review-service` — в roadmap
 
 ## Архитектура
 
@@ -63,7 +64,7 @@ Infra:
 | Payment Service | 8004 | ✅ | payment reserve/confirm/refund/history + idempotency |
 | Delivery Service | 8005 | ✅ | courier lifecycle + tracking (Phase 5 completed, contract-stage) |
 | Notification Service | 8006 | ✅ | event-driven email/push delivery + notification history |
-| Analytics Service | 8007 | ⚪ | planned |
+| Analytics Service | 8007 | ✅ | Kafka ingestion, ClickHouse storage, overview/events reporting |
 | Review Service | 8008 | ⚪ | planned |
 
 ## Технологический стек
@@ -129,6 +130,8 @@ make test-delivery-unit
 make test-delivery-integration
 make test-notification
 make test-notification-unit
+make test-analytics
+make test-analytics-unit
 
 make dev-gateway
 make dev-user
@@ -137,6 +140,7 @@ make dev-order
 make dev-payment
 make dev-delivery
 make dev-notification
+make dev-analytics
 ```
 
 `make test` запускает только repo-level тесты из `./tests` (если они есть).

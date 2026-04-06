@@ -56,7 +56,7 @@ async def readiness_check(request: Request) -> JSONResponse:
         client = getattr(request.app.state, "http_client", None)
         if client is None:
             logger.warning("HTTP client not initialized; using temporary client")
-            async with httpx.AsyncClient(timeout=5.0) as temp_client:
+            async with httpx.AsyncClient(timeout=5.0, trust_env=False) as temp_client:
                 response = await temp_client.get(f"{settings.user_service_url}/health")
         else:
             response = await client.get(f"{settings.user_service_url}/health", timeout=5.0)
@@ -76,7 +76,7 @@ async def readiness_check(request: Request) -> JSONResponse:
         client = getattr(request.app.state, "http_client", None)
         if client is None:
             logger.warning("HTTP client not initialized; using temporary client")
-            async with httpx.AsyncClient(timeout=5.0) as temp_client:
+            async with httpx.AsyncClient(timeout=5.0, trust_env=False) as temp_client:
                 response = await temp_client.get(f"{settings.order_service_url}/health")
         else:
             response = await client.get(f"{settings.order_service_url}/health", timeout=5.0)

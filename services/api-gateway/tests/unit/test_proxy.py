@@ -89,6 +89,46 @@ def test_proxy_payment_history_success(client_with_mocks):
 
 
 @pytest.mark.unit
+def test_proxy_analytics_overview_success(client_with_mocks):
+    token = _build_access_token()
+
+    def request_handler(method, url, **kwargs):
+        assert method == "GET"
+        assert str(url).endswith("/api/v1/analytics/overview")
+        assert kwargs["headers"]["X-User-ID"] == "test-user-id"
+        return httpx.Response(
+            status_code=200,
+            json={
+                "total_events": 5,
+                "orders_created": 2,
+                "orders_confirmed": 1,
+                "deliveries_assigned": 1,
+                "emails_sent": 1,
+                "pushes_sent": 0,
+                "notifications_sent": 1,
+                "gross_revenue": "900.00",
+                "unique_customers": 2,
+                "date_from": None,
+                "date_to": None,
+            },
+        )
+
+    mock_client = AsyncMock()
+    mock_client.request = AsyncMock(side_effect=request_handler)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        response = client_with_mocks.get(
+            "/api/v1/analytics/overview",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["orders_created"] == 2
+
+
+@pytest.mark.unit
 def test_proxy_delivery_location_requires_jwt(client_with_mocks):
     response = client_with_mocks.post(
         "/api/v1/deliveries/location",
@@ -167,8 +207,12 @@ async def test_proxy_delivery_order_tracking_bridges_backend_websocket() -> None
             await proxy_delivery_order_tracking(websocket, "order-123")
 
     websocket.accept.assert_awaited_once()
+    expected_backend_url = _to_websocket_url(
+        settings.delivery_service_url,
+        "/ws/orders/order-123",
+    )
     connect_mock.assert_called_once_with(
-        "ws://localhost:8005/ws/orders/order-123",
+        expected_backend_url,
         open_timeout=settings.proxy_timeout_delivery,
     )
     bridge_mock.assert_awaited_once_with(websocket, backend_ws)

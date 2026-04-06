@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.application.dto.delivery import AssignCourierDTO
+from src.application.interfaces.courier_allocator import ICourierAllocator
 from src.application.interfaces.event_publisher import IDeliveryEventPublisher
 from src.application.use_cases.assign_courier import AssignCourierUseCase
 from src.domain.entities.assignment import DeliveryAssignment
@@ -23,12 +24,28 @@ class SpyDeliveryEventPublisher(IDeliveryEventPublisher):
         self.assignment_ids.append(assignment.id)
 
 
+class StubCourierAllocator(ICourierAllocator):
+    """Deterministic courier allocator for tests."""
+
+    def __init__(self, courier_id: UUID) -> None:
+        self._courier_id = courier_id
+
+    def allocate(self) -> UUID:
+        """Return configured courier id."""
+        return self._courier_id
+
+
 @pytest.mark.unit()
 @pytest.mark.asyncio()
 async def test_assign_courier_use_case_publishes_assignment_event() -> None:
     repository = InMemoryAssignmentRepository()
     event_publisher = SpyDeliveryEventPublisher()
-    use_case = AssignCourierUseCase(repository=repository, event_publisher=event_publisher)
+    courier_id = uuid4()
+    use_case = AssignCourierUseCase(
+        repository=repository,
+        event_publisher=event_publisher,
+        courier_allocator=StubCourierAllocator(courier_id),
+    )
 
     result = await use_case.execute(
         AssignCourierDTO(
@@ -39,3 +56,4 @@ async def test_assign_courier_use_case_publishes_assignment_event() -> None:
 
     assert len(event_publisher.assignment_ids) == 1
     assert event_publisher.assignment_ids[0] == result.id
+    assert result.courier_id == courier_id

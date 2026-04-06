@@ -37,5 +37,15 @@ else
     echo "⚠ Order Service: No Alembic configuration found"
 fi
 
+# Review Service
+echo "→ Review Service migrations..."
+cd "$PROJECT_ROOT/services/review-service"
+if [ -d "alembic" ]; then
+    alembic upgrade head
+    echo "✓ Review Service migrations completed"
+else
+    echo "⚠ Review Service: No Alembic configuration found"
+fi
+
 echo ""
 echo "✓ All migrations completed successfully"

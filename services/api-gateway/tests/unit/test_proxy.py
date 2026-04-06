@@ -129,6 +129,72 @@ def test_proxy_analytics_overview_success(client_with_mocks):
 
 
 @pytest.mark.unit
+def test_proxy_create_review_requires_jwt(client_with_mocks):
+    response = client_with_mocks.post(
+        "/api/v1/reviews",
+        json={"order_id": "00000000-0000-0000-0000-000000000001", "rating": 5},
+    )
+
+    assert response.status_code in {401, 403}
+
+
+@pytest.mark.unit
+def test_proxy_restaurant_review_rating_success(client_with_mocks):
+    restaurant_id = "00000000-0000-0000-0000-000000000002"
+
+    def request_handler(method, url, **kwargs):
+        assert method == "GET"
+        assert str(url).endswith(f"/api/v1/reviews/restaurants/{restaurant_id}/rating")
+        return httpx.Response(
+            status_code=200,
+            json={
+                "restaurant_id": restaurant_id,
+                "average_rating": "4.50",
+                "reviews_count": 2,
+            },
+        )
+
+    mock_client = AsyncMock()
+    mock_client.request = AsyncMock(side_effect=request_handler)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        response = client_with_mocks.get(f"/api/v1/reviews/restaurants/{restaurant_id}/rating")
+
+    assert response.status_code == 200
+    assert response.json()["average_rating"] == "4.50"
+
+
+@pytest.mark.unit
+def test_proxy_courier_review_rating_success(client_with_mocks):
+    courier_id = "00000000-0000-0000-0000-000000000003"
+
+    def request_handler(method, url, **kwargs):
+        assert method == "GET"
+        assert str(url).endswith(f"/api/v1/reviews/couriers/{courier_id}/rating")
+        return httpx.Response(
+            status_code=200,
+            json={
+                "courier_id": courier_id,
+                "average_rating": "4.80",
+                "reviews_count": 3,
+            },
+        )
+
+    mock_client = AsyncMock()
+    mock_client.request = AsyncMock(side_effect=request_handler)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        response = client_with_mocks.get(f"/api/v1/reviews/couriers/{courier_id}/rating")
+
+    assert response.status_code == 200
+    assert response.json()["average_rating"] == "4.80"
+
+
+@pytest.mark.unit
 def test_proxy_delivery_location_requires_jwt(client_with_mocks):
     response = client_with_mocks.post(
         "/api/v1/deliveries/location",

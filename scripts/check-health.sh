@@ -77,6 +77,7 @@ check_container_health "food-delivery-payment-service" "Payment Service"
 check_container_health "food-delivery-delivery-service" "Delivery Service"
 check_container_health "food-delivery-notification-service" "Notification Service"
 check_container_health "food-delivery-analytics-service" "Analytics Service"
+check_container_health "food-delivery-review-service" "Review Service"
 check_container_health "food-delivery-api-gateway" "API Gateway"
 
 if docker ps -a --format '{{.Names}}' | grep -q '^food-delivery-clickhouse$'; then

@@ -116,3 +116,32 @@ class TestProxyToAnalyticsService:
         data = response.json()
         assert "items" in data
         assert "total" in data
+
+
+@pytest.mark.integration
+class TestProxyToReviewService:
+    """Test proxying review requests through gateway."""
+
+    def test_proxy_review_rating_success(self, gateway_client_with_review_service):
+        restaurant_id = "22222222-2222-2222-2222-222222222222"
+
+        response = gateway_client_with_review_service.get(
+            f"/api/v1/reviews/restaurants/{restaurant_id}/rating"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "average_rating" in data
+        assert "reviews_count" in data
+
+    def test_proxy_courier_review_rating_success(self, gateway_client_with_review_service):
+        courier_id = "44444444-4444-4444-4444-444444444444"
+
+        response = gateway_client_with_review_service.get(
+            f"/api/v1/reviews/couriers/{courier_id}/rating"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "average_rating" in data
+        assert "reviews_count" in data

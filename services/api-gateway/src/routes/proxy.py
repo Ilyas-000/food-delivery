@@ -8,6 +8,7 @@ Routes requests from clients to appropriate microservices:
 - /api/v1/payments/* -> Payment Service
 - /api/v1/deliveries/* -> Delivery Service
 - /api/v1/analytics/* -> Analytics Service
+- /api/v1/reviews/* -> Review Service
 - /ws/orders/* -> Delivery Service WebSocket
 """
 
@@ -717,6 +718,113 @@ async def list_analytics_events(
         "api/v1/analytics/events",
         timeout=settings.proxy_timeout_analytics,
         user=_user,
+    )
+
+
+# ============================================================================
+# REVIEW ROUTES
+# ============================================================================
+
+
+@router.post("/api/v1/reviews")
+async def create_review(
+    request: Request,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Create review (proxied to Review Service)."""
+    return await proxy_to_service(
+        request,
+        settings.review_service_url,
+        "api/v1/reviews",
+        timeout=settings.proxy_timeout_review,
+        user=_user,
+    )
+
+
+@router.get("/api/v1/reviews")
+async def list_reviews(
+    request: Request,
+) -> Response:
+    """List reviews (proxied to Review Service)."""
+    return await proxy_to_service(
+        request,
+        settings.review_service_url,
+        "api/v1/reviews",
+        timeout=settings.proxy_timeout_review,
+    )
+
+
+@router.get("/api/v1/reviews/{review_id}")
+async def get_review(
+    request: Request,
+    review_id: str,
+) -> Response:
+    """Get review by id (proxied to Review Service)."""
+    return await proxy_to_service(
+        request,
+        settings.review_service_url,
+        f"api/v1/reviews/{review_id}",
+        timeout=settings.proxy_timeout_review,
+    )
+
+
+@router.patch("/api/v1/reviews/{review_id}")
+async def update_review(
+    request: Request,
+    review_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Update review (proxied to Review Service)."""
+    return await proxy_to_service(
+        request,
+        settings.review_service_url,
+        f"api/v1/reviews/{review_id}",
+        timeout=settings.proxy_timeout_review,
+        user=_user,
+    )
+
+
+@router.delete("/api/v1/reviews/{review_id}")
+async def delete_review(
+    request: Request,
+    review_id: str,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Delete review (proxied to Review Service)."""
+    return await proxy_to_service(
+        request,
+        settings.review_service_url,
+        f"api/v1/reviews/{review_id}",
+        timeout=settings.proxy_timeout_review,
+        user=_user,
+    )
+
+
+@router.get("/api/v1/reviews/restaurants/{restaurant_id}/rating")
+async def get_review_restaurant_rating(
+    request: Request,
+    restaurant_id: str,
+) -> Response:
+    """Get restaurant rating summary (proxied to Review Service)."""
+    return await proxy_to_service(
+        request,
+        settings.review_service_url,
+        f"api/v1/reviews/restaurants/{restaurant_id}/rating",
+        timeout=settings.proxy_timeout_review,
+    )
+
+
+@router.get("/api/v1/reviews/couriers/{courier_id}/rating")
+async def get_review_courier_rating(
+    request: Request,
+    courier_id: str,
+) -> Response:
+    """Get courier rating summary (proxied to Review Service)."""
+    return await proxy_to_service(
+        request,
+        settings.review_service_url,
+        f"api/v1/reviews/couriers/{courier_id}/rating",
+        timeout=settings.proxy_timeout_review,
     )
 
 

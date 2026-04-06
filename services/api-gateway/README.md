@@ -9,6 +9,7 @@
   - Restaurant Service (`/api/v1/restaurants/*`)
   - Order Service (`/api/v1/orders/*`)
   - Payment Service (`/api/v1/payments/*`)
+  - Review Service (`/api/v1/reviews/*`)
   - Delivery Service (`/api/v1/deliveries/*`, `/ws/orders/*`)
 - JWT валидация для protected маршрутов
 - Rate limiting на Redis (global auth, login, refresh)
@@ -57,6 +58,7 @@ make dev-gateway
 - `GATEWAY_ORDER_SERVICE_URL=http://localhost:8003`
 - `GATEWAY_PAYMENT_SERVICE_URL=http://localhost:8004`
 - `GATEWAY_DELIVERY_SERVICE_URL=http://localhost:8005`
+- `GATEWAY_REVIEW_SERVICE_URL=http://localhost:8008`
 
 ## Основные endpoints
 
@@ -100,6 +102,14 @@ make dev-gateway
 - `POST /api/v1/payments/{payment_id}/confirm`
 - `POST /api/v1/payments/{payment_id}/refund`
 
+### Reviews
+- `POST /api/v1/reviews` (protected)
+- `GET /api/v1/reviews`
+- `GET /api/v1/reviews/{review_id}`
+- `PATCH /api/v1/reviews/{review_id}` (protected)
+- `DELETE /api/v1/reviews/{review_id}` (protected)
+- `GET /api/v1/reviews/restaurants/{restaurant_id}/rating`
+
 ### Delivery (protected REST + public WS stream)
 - `POST /api/v1/deliveries/assignments`
 - `DELETE /api/v1/deliveries/assignments/{assignment_id}`
@@ -117,6 +127,7 @@ make dev-gateway
 - `GATEWAY_ORDER_SERVICE_URL`
 - `GATEWAY_PAYMENT_SERVICE_URL`
 - `GATEWAY_DELIVERY_SERVICE_URL`
+- `GATEWAY_REVIEW_SERVICE_URL`
 - `GATEWAY_PROXY_TIMEOUT_DELIVERY`
 - `GATEWAY_RATE_LIMIT_ENABLED`
 

@@ -15,12 +15,15 @@ Internal saga contract (service-to-service):
 - `GET /health`
 - `POST /api/v1/deliveries/assignments`
 - `DELETE /api/v1/deliveries/assignments/{assignment_id}`
+- `GET /api/v1/deliveries/orders/{order_id}`
 
 ## Notes
 
 - Current storage backend is in-memory.
 - Real-time backend is configurable via `DELIVERY_SERVICE_REALTIME_BACKEND` (`memory` or `redis`).
 - Recommended runtime for Phase 5: `DELIVERY_SERVICE_REALTIME_BACKEND=redis`.
+- Courier identity is exposed in assignment/read contracts and is selected from
+  `DELIVERY_SERVICE_MOCK_COURIER_IDS` when caller does not pass `courier_id` explicitly.
 - Contract is used by `order-service` in `ORDER_SERVICE_SAGA_BACKEND=http` mode.
 - External client traffic should enter via `api-gateway`; direct calls to `delivery-service` are internal/dev mode.
 - WebSocket broadcasts:

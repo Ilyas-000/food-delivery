@@ -24,6 +24,7 @@ class DeliveryAssignment:
     id: UUID
     order_id: UUID
     restaurant_id: UUID
+    courier_id: UUID
     status: AssignmentStatus
     current_location: Location | None
     delivered_at: datetime | None
@@ -31,13 +32,14 @@ class DeliveryAssignment:
     updated_at: datetime
 
     @classmethod
-    def create(cls, order_id: UUID, restaurant_id: UUID) -> "DeliveryAssignment":
+    def create(cls, order_id: UUID, restaurant_id: UUID, courier_id: UUID) -> "DeliveryAssignment":
         """Create assignment with initial status."""
         now = datetime.now(UTC)
         return cls(
             id=uuid4(),
             order_id=order_id,
             restaurant_id=restaurant_id,
+            courier_id=courier_id,
             status=AssignmentStatus.ASSIGNED,
             current_location=None,
             delivered_at=None,

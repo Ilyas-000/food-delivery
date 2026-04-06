@@ -14,7 +14,7 @@
 - ✅ `delivery-service` (contract lifecycle + tracking + gateway WS proxy)
 - ✅ `notification-service` (event-driven mock email/push, Phase 6 completed)
 - ✅ `analytics-service` (Phase 7 completed: Kafka ingestion + ClickHouse + overview/events API)
-- ⚪ `review-service` — в roadmap
+- ✅ `review-service` (Phase 8 completed: restaurant/courier reviews + rating summaries)
 
 ## Архитектура
 
@@ -65,7 +65,7 @@ Infra:
 | Delivery Service | 8005 | ✅ | courier lifecycle + tracking (Phase 5 completed, contract-stage) |
 | Notification Service | 8006 | ✅ | event-driven email/push delivery + notification history |
 | Analytics Service | 8007 | ✅ | Kafka ingestion, ClickHouse storage, overview/events reporting |
-| Review Service | 8008 | ⚪ | planned |
+| Review Service | 8008 | ✅ | restaurant/courier reviews and rating summaries |
 
 ## Технологический стек
 
@@ -132,6 +132,8 @@ make test-notification
 make test-notification-unit
 make test-analytics
 make test-analytics-unit
+make test-review
+make test-review-unit
 
 make dev-gateway
 make dev-user
@@ -141,6 +143,7 @@ make dev-payment
 make dev-delivery
 make dev-notification
 make dev-analytics
+make dev-review
 ```
 
 `make test` запускает только repo-level тесты из `./tests` (если они есть).

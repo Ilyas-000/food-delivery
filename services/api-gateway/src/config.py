@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     payment_service_url: str = "http://payment-service:8004"
     delivery_service_url: str = "http://delivery-service:8005"
     analytics_service_url: str = "http://analytics-service:8007"
+    review_service_url: str = "http://review-service:8008"
 
     # Proxy timeouts (seconds)
     proxy_timeout_default: float = 30.0
@@ -54,6 +55,7 @@ class Settings(BaseSettings):
     proxy_timeout_payment: float = 10.0
     proxy_timeout_delivery: float = 10.0
     proxy_timeout_analytics: float = 10.0
+    proxy_timeout_review: float = 10.0
 
     # Circuit Breaker settings
     circuit_breaker_failure_threshold: int = 5

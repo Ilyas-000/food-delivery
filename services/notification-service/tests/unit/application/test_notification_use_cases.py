@@ -59,6 +59,7 @@ async def test_event_processor_sends_created_confirmed_and_assignment_notificati
         aggregate_id="assignment-1",
         order_id="order-1",
         restaurant_id="restaurant-1",
+        courier_id="courier-1",
     )
 
     await processor.process_event(created_event.model_dump(mode="json"))

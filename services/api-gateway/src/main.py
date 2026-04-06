@@ -3,6 +3,7 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 import httpx
 import structlog
@@ -57,6 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.http_client = httpx.AsyncClient(
         timeout=httpx.Timeout(settings.proxy_timeout_default),
         limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+        trust_env=False,
     )
     logger.info("HTTP client initialized")
 
@@ -126,7 +128,10 @@ def create_app() -> FastAPI:
     if settings.trust_proxy_headers:
         trusted_hosts = settings.trusted_proxy_ips or "*"
         # Add last so it runs first and sets request.client for downstream middleware.
-        app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_hosts)
+        app.add_middleware(
+            cast(Any, ProxyHeadersMiddleware),
+            trusted_hosts=trusted_hosts,
+        )
 
     # Include routers
     app.include_router(health.router, tags=["Health"])

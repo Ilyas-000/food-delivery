@@ -6,6 +6,7 @@ requires-python = "==3.12.*"
 members = [
     "api-gateway",
     "food-delivery",
+    "food-delivery-analytics-service",
     "food-delivery-delivery-service",
     "food-delivery-notification-service",
     "food-delivery-order-service",
@@ -394,6 +395,42 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.1" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.9" },
+]
+provides-extras = ["dev"]
+
+[[package]]
+name = "food-delivery-analytics-service"
+version = "0.1.0"
+source = { editable = "services/analytics-service" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "food-delivery-shared" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "structlog" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.109.0" },
+    { name = "food-delivery-shared", editable = "shared" },
+    { name = "httpx", specifier = ">=0.25.2" },
+    { name = "pydantic", specifier = ">=2.5.0" },
+    { name = "pydantic-settings", specifier = ">=2.1.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.3" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.1" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
+    { name = "structlog", specifier = ">=24.1.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.25.0" },
 ]
 provides-extras = ["dev"]
 

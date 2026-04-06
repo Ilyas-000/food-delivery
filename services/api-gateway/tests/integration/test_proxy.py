@@ -1,8 +1,17 @@
 """Integration tests for proxy functionality."""
 
 import pytest
+from shared.common.jwt import create_access_token
 
 from src.config import settings
+
+
+def _build_access_token() -> str:
+    return create_access_token(
+        subject="analytics-user-id",
+        secret_key=settings.jwt_secret_key,
+        extra_claims={"role": "admin", "email": "analytics@example.com"},
+    )
 
 
 @pytest.mark.integration
@@ -76,3 +85,34 @@ class TestProxyToUserService:
         assert response.status_code == 502
         data = response.json()
         assert "connect" in data["error"]["message"].lower()
+
+
+@pytest.mark.integration
+class TestProxyToAnalyticsService:
+    """Test proxying analytics requests through gateway."""
+
+    def test_proxy_analytics_overview_success(self, gateway_client_with_analytics_service):
+        token = _build_access_token()
+
+        response = gateway_client_with_analytics_service.get(
+            "/api/v1/analytics/overview",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "total_events" in data
+        assert "gross_revenue" in data
+
+    def test_proxy_analytics_events_success(self, gateway_client_with_analytics_service):
+        token = _build_access_token()
+
+        response = gateway_client_with_analytics_service.get(
+            "/api/v1/analytics/events",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "items" in data
+        assert "total" in data

@@ -22,6 +22,7 @@ os.environ.setdefault("GATEWAY_USER_SERVICE_URL", "http://localhost:8001")
 os.environ.setdefault("GATEWAY_ORDER_SERVICE_URL", "http://localhost:8003")
 os.environ.setdefault("GATEWAY_PAYMENT_SERVICE_URL", "http://localhost:8004")
 os.environ.setdefault("GATEWAY_DELIVERY_SERVICE_URL", "http://localhost:8005")
+os.environ.setdefault("GATEWAY_ANALYTICS_SERVICE_URL", "http://localhost:8007")
 os.environ.setdefault("GATEWAY_REDIS_HOST", "localhost")
 os.environ.setdefault("GATEWAY_REDIS_PORT", "6379")
 os.environ.setdefault("GATEWAY_REDIS_DB", "15")
@@ -103,7 +104,7 @@ def _flush_redis() -> None:
 
 def _is_user_service_ready() -> bool:
     try:
-        response = httpx.get(f"{settings.user_service_url}/health", timeout=2.0)
+        response = httpx.get(f"{settings.user_service_url}/health", timeout=2.0, trust_env=False)
     except httpx.RequestError:
         return False
     return response.status_code == 200
@@ -111,7 +112,19 @@ def _is_user_service_ready() -> bool:
 
 def _is_order_service_ready() -> bool:
     try:
-        response = httpx.get(f"{settings.order_service_url}/health", timeout=2.0)
+        response = httpx.get(f"{settings.order_service_url}/health", timeout=2.0, trust_env=False)
+    except httpx.RequestError:
+        return False
+    return response.status_code == 200
+
+
+def _is_analytics_service_ready() -> bool:
+    try:
+        response = httpx.get(
+            f"{settings.analytics_service_url}/health",
+            timeout=2.0,
+            trust_env=False,
+        )
     except httpx.RequestError:
         return False
     return response.status_code == 200
@@ -139,6 +152,20 @@ def gateway_client_with_user_service() -> TestClient:
         pytest.skip(f"User Service not available at {settings.user_service_url}")
     if not _is_order_service_ready():
         pytest.skip(f"Order Service not available at {settings.order_service_url}")
+    _flush_redis()
+    app = create_app()
+    with TestClient(app) as client:
+        yield client
+
+
+@pytest.fixture
+def gateway_client_with_analytics_service() -> TestClient:
+    """Gateway client with real Redis + Analytics Service (integration)."""
+    if not _is_redis_ready():
+        pytest.skip("Redis is not available for integration tests")
+    if not _is_analytics_service_ready():
+        pytest.skip(f"Analytics Service not available at {settings.analytics_service_url}")
+    _align_gateway_secret_with_user_service()
     _flush_redis()
     app = create_app()
     with TestClient(app) as client:

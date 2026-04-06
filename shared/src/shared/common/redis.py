@@ -17,7 +17,7 @@ class RedisClient:
         password: str | None = None,
         decode_responses: bool = True,
     ) -> None:
-        self._client: redis.Redis[str] | redis.Redis[bytes]
+        self._client: Any
         if url:
             if decode_responses:
                 self._client = redis.Redis.from_url(url, decode_responses=True)
@@ -79,7 +79,7 @@ class RedisClient:
         return self._client.pipeline()
 
     def pubsub(self) -> redis.client.PubSub:
-        return self._client.pubsub()
+        return cast(redis.client.PubSub, self._client.pubsub())
 
     async def close(self) -> None:
         # redis.asyncio type stubs don't expose aclose yet.

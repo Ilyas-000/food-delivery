@@ -7,6 +7,7 @@ Routes requests from clients to appropriate microservices:
 - /api/v1/orders/* -> Order Service
 - /api/v1/payments/* -> Payment Service
 - /api/v1/deliveries/* -> Delivery Service
+- /api/v1/analytics/* -> Analytics Service
 - /ws/orders/* -> Delivery Service WebSocket
 """
 
@@ -93,7 +94,7 @@ async def proxy_to_service(
         client = getattr(request.app.state, "http_client", None)
         if client is None:
             logger.warning("HTTP client not initialized; using temporary client")
-            async with httpx.AsyncClient(timeout=30.0) as temp_client:
+            async with httpx.AsyncClient(timeout=30.0, trust_env=False) as temp_client:
                 response = await send_request(temp_client)
         else:
             response = await send_request(client)
@@ -680,6 +681,41 @@ async def refund_payment(
         settings.payment_service_url,
         f"api/v1/payments/{payment_id}/refund",
         timeout=settings.proxy_timeout_payment,
+        user=_user,
+    )
+
+
+# ============================================================================
+# ANALYTICS ROUTES (Protected - JWT required)
+# ============================================================================
+
+
+@router.get("/api/v1/analytics/overview")
+async def get_analytics_overview(
+    request: Request,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """Get analytics overview (proxied to Analytics Service)."""
+    return await proxy_to_service(
+        request,
+        settings.analytics_service_url,
+        "api/v1/analytics/overview",
+        timeout=settings.proxy_timeout_analytics,
+        user=_user,
+    )
+
+
+@router.get("/api/v1/analytics/events")
+async def list_analytics_events(
+    request: Request,
+    _user: JWTPayload = Depends(verify_jwt_token),
+) -> Response:
+    """List analytics events (proxied to Analytics Service)."""
+    return await proxy_to_service(
+        request,
+        settings.analytics_service_url,
+        "api/v1/analytics/events",
+        timeout=settings.proxy_timeout_analytics,
         user=_user,
     )
 

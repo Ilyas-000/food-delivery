@@ -5,17 +5,20 @@ from typing import Annotated
 from fastapi import Depends
 
 from src.application.interfaces.assignment_repository import IAssignmentRepository
+from src.application.interfaces.event_publisher import IDeliveryEventPublisher
 from src.application.use_cases.assign_courier import AssignCourierUseCase
 from src.application.use_cases.cancel_assignment import CancelAssignmentUseCase
 from src.application.use_cases.complete_delivery import CompleteDeliveryUseCase
 from src.application.use_cases.update_delivery_location import UpdateDeliveryLocationUseCase
 from src.config import settings
+from src.infrastructure.events.publisher import KafkaDeliveryEventPublisher
 from src.infrastructure.repositories.in_memory_assignment_repository import (
     InMemoryAssignmentRepository,
 )
 from src.interface.realtime.order_tracking_broadcaster import OrderTrackingBroadcaster
 
 _REPOSITORY = InMemoryAssignmentRepository()
+_EVENT_PUBLISHER = KafkaDeliveryEventPublisher()
 _ORDER_TRACKING_BROADCASTER = OrderTrackingBroadcaster(
     realtime_backend=settings.realtime_backend,
     redis_host=settings.redis_host,
@@ -31,11 +34,17 @@ async def get_assignment_repository() -> IAssignmentRepository:
     return _REPOSITORY
 
 
+async def get_delivery_event_publisher() -> IDeliveryEventPublisher:
+    """Provide delivery event publisher."""
+    return _EVENT_PUBLISHER
+
+
 async def get_assign_courier_use_case(
     repository: Annotated[IAssignmentRepository, Depends(get_assignment_repository)],
+    event_publisher: Annotated[IDeliveryEventPublisher, Depends(get_delivery_event_publisher)],
 ) -> AssignCourierUseCase:
     """Provide assign courier use case."""
-    return AssignCourierUseCase(repository=repository)
+    return AssignCourierUseCase(repository=repository, event_publisher=event_publisher)
 
 
 async def get_cancel_assignment_use_case(

@@ -12,9 +12,13 @@ async def test_get_create_order_use_case_uses_mock_saga_steps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repository = InMemoryOrderRepository()
+    event_publisher = await order_dependencies.get_order_event_publisher()
     monkeypatch.setattr(order_dependencies.settings, "saga_backend", "mock")
 
-    use_case = await order_dependencies.get_create_order_use_case(repository=repository)
+    use_case = await order_dependencies.get_create_order_use_case(
+        repository=repository,
+        event_publisher=event_publisher,
+    )
 
     step_modules = [step.__class__.__module__ for step in use_case._saga_steps]
     assert all(module == "src.infrastructure.saga.mock_steps" for module in step_modules)
@@ -26,9 +30,13 @@ async def test_get_create_order_use_case_uses_http_saga_steps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repository = InMemoryOrderRepository()
+    event_publisher = await order_dependencies.get_order_event_publisher()
     monkeypatch.setattr(order_dependencies.settings, "saga_backend", "http")
 
-    use_case = await order_dependencies.get_create_order_use_case(repository=repository)
+    use_case = await order_dependencies.get_create_order_use_case(
+        repository=repository,
+        event_publisher=event_publisher,
+    )
 
     step_modules = [step.__class__.__module__ for step in use_case._saga_steps]
     assert all(module == "src.infrastructure.saga.http_steps" for module in step_modules)
@@ -40,7 +48,11 @@ async def test_get_create_order_use_case_raises_for_unknown_saga_backend(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repository = InMemoryOrderRepository()
+    event_publisher = await order_dependencies.get_order_event_publisher()
     monkeypatch.setattr(order_dependencies.settings, "saga_backend", "unknown")
 
     with pytest.raises(RuntimeError, match="Unsupported ORDER_SERVICE_SAGA_BACKEND"):
-        await order_dependencies.get_create_order_use_case(repository=repository)
+        await order_dependencies.get_create_order_use_case(
+            repository=repository,
+            event_publisher=event_publisher,
+        )

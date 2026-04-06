@@ -1,4 +1,4 @@
-.PHONY: help install dev-install setup-dev docker-ready up down restart logs health clean clean-image clean-images test test-all test-all-full test-unit test-integration test-e2e test-cov test-deps-up test-e2e-deps-up test-service-prepare test-service test-service-full test-service-unit test-service-integration test-service-e2e test-user test-gateway test-restaurant test-order test-payment test-delivery test-user-unit test-gateway-unit test-restaurant-unit test-order-unit test-payment-unit test-delivery-unit test-user-integration test-gateway-integration test-restaurant-integration test-order-integration test-payment-integration test-delivery-integration test-user-e2e test-gateway-e2e test-restaurant-e2e test-order-e2e test-payment-e2e test-delivery-e2e lint format type-check pre-commit migrate seed dev-payment dev-delivery
+.PHONY: help install dev-install setup-dev docker-ready up down restart logs health clean clean-image clean-images test test-all test-all-full test-unit test-integration test-e2e test-cov test-deps-up test-e2e-deps-up test-service-prepare test-service test-service-full test-service-unit test-service-integration test-service-e2e test-user test-gateway test-restaurant test-order test-payment test-delivery test-notification test-user-unit test-gateway-unit test-restaurant-unit test-order-unit test-payment-unit test-delivery-unit test-notification-unit test-user-integration test-gateway-integration test-restaurant-integration test-order-integration test-payment-integration test-delivery-integration test-notification-integration test-user-e2e test-gateway-e2e test-restaurant-e2e test-order-e2e test-payment-e2e test-delivery-e2e test-notification-e2e lint format type-check pre-commit migrate seed dev-payment dev-delivery dev-notification
 
 # Default target
 .DEFAULT_GOAL := help
@@ -282,7 +282,7 @@ ifdef SERVICE
 		user-service|restaurant-service) \
 			$(COMPOSE) up -d postgres redis; \
 			;; \
-		payment-service|delivery-service) \
+		payment-service|delivery-service|notification-service) \
 			;; \
 		*) \
 			echo "$(RED)Error: Unknown service '$(SERVICE)'$(NC)"; \
@@ -382,6 +382,9 @@ test-payment: ## Run tests for payment service
 test-delivery: ## Run tests for delivery service
 	@$(MAKE) test-service SERVICE=delivery-service
 
+test-notification: ## Run tests for notification service
+	@$(MAKE) test-service SERVICE=notification-service
+
 test-user-unit: ## Run unit tests for user service
 	@$(MAKE) test-service-unit SERVICE=user-service
 
@@ -399,6 +402,9 @@ test-payment-unit: ## Run unit tests for payment service
 
 test-delivery-unit: ## Run unit tests for delivery service
 	@$(MAKE) test-service-unit SERVICE=delivery-service
+
+test-notification-unit: ## Run unit tests for notification service
+	@$(MAKE) test-service-unit SERVICE=notification-service
 
 test-user-integration: ## Run integration tests for user service
 	@$(MAKE) test-service-integration SERVICE=user-service
@@ -418,6 +424,9 @@ test-payment-integration: ## Run integration tests for payment service
 test-delivery-integration: ## Run integration tests for delivery service
 	@$(MAKE) test-service-integration SERVICE=delivery-service
 
+test-notification-integration: ## Run integration tests for notification service
+	@$(MAKE) test-service-integration SERVICE=notification-service
+
 test-user-e2e: ## Run e2e tests for user service
 	@$(MAKE) test-service-e2e SERVICE=user-service
 
@@ -435,6 +444,9 @@ test-payment-e2e: ## Run e2e tests for payment service
 
 test-delivery-e2e: ## Run e2e tests for delivery service
 	@$(MAKE) test-service-e2e SERVICE=delivery-service
+
+test-notification-e2e: ## Run e2e tests for notification service
+	@$(MAKE) test-service-e2e SERVICE=notification-service
 
 lint: ## Run ruff linter
 	@echo "$(BLUE)Running linter...$(NC)"
@@ -454,6 +466,7 @@ type-check: ## Run mypy type checker
 	MYPYPATH=shared/src:services/order-service mypy services/order-service/src
 	MYPYPATH=shared/src:services/payment-service mypy services/payment-service/src
 	MYPYPATH=shared/src:services/delivery-service mypy services/delivery-service/src
+	MYPYPATH=shared/src:services/notification-service mypy services/notification-service/src
 	MYPYPATH=shared/src mypy shared/src
 
 pre-commit: ## Run all pre-commit hooks
@@ -495,6 +508,10 @@ dev-payment: ## Run Payment Service locally
 dev-delivery: ## Run Delivery Service locally
 	@echo "$(BLUE)Starting Delivery Service...$(NC)"
 	cd services/delivery-service && uvicorn src.main:app --reload --port 8005
+
+dev-notification: ## Run Notification Service locally
+	@echo "$(BLUE)Starting Notification Service...$(NC)"
+	cd services/notification-service && uvicorn src.main:app --reload --port 8006
 
 ## Kafka
 

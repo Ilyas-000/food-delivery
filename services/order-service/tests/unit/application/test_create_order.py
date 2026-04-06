@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.application.dto.order import CreateOrderDTO, CreateOrderItemDTO, OrderSagaContext
+from src.application.interfaces.event_publisher import IOrderEventPublisher
 from src.application.interfaces.order_repository import IOrderRepository
 from src.application.interfaces.saga_step import ISagaStep
 from src.application.use_cases.create_order import CreateOrderUseCase
@@ -52,12 +53,31 @@ class SpySagaStep(ISagaStep):
         context.metadata[self.name] = "compensated"
 
 
+class SpyOrderEventPublisher(IOrderEventPublisher):
+    """Test double for order event publishing."""
+
+    def __init__(self) -> None:
+        self.created_order_ids: list[UUID] = []
+        self.confirmed_order_ids: list[UUID] = []
+
+    async def publish_order_created(self, order: Order) -> None:
+        self.created_order_ids.append(order.id)
+
+    async def publish_order_confirmed(self, order: Order) -> None:
+        self.confirmed_order_ids.append(order.id)
+
+
 @pytest.mark.unit()
 @pytest.mark.asyncio()
 async def test_create_order_happy_path_confirms_order() -> None:
     repository = InMemoryOrderRepository()
     steps = [SpySagaStep("validate_menu"), SpySagaStep("reserve_payment")]
-    use_case = CreateOrderUseCase(repository=repository, saga_steps=steps)
+    event_publisher = SpyOrderEventPublisher()
+    use_case = CreateOrderUseCase(
+        repository=repository,
+        saga_steps=steps,
+        event_publisher=event_publisher,
+    )
 
     dto = CreateOrderDTO(
         user_id=uuid4(),
@@ -72,6 +92,8 @@ async def test_create_order_happy_path_confirms_order() -> None:
     assert result.status == OrderStatus.CONFIRMED
     assert all(step.executed for step in steps)
     assert not any(step.compensated for step in steps)
+    assert len(event_publisher.created_order_ids) == 1
+    assert event_publisher.confirmed_order_ids == event_publisher.created_order_ids
 
 
 @pytest.mark.unit()
@@ -80,7 +102,12 @@ async def test_create_order_runs_compensation_on_failure() -> None:
     repository = InMemoryOrderRepository()
     step_one = SpySagaStep("validate_menu")
     step_two = SpySagaStep("reserve_payment", fail_on_execute=True)
-    use_case = CreateOrderUseCase(repository=repository, saga_steps=[step_one, step_two])
+    event_publisher = SpyOrderEventPublisher()
+    use_case = CreateOrderUseCase(
+        repository=repository,
+        saga_steps=[step_one, step_two],
+        event_publisher=event_publisher,
+    )
 
     dto = CreateOrderDTO(
         user_id=uuid4(),
@@ -96,3 +123,5 @@ async def test_create_order_runs_compensation_on_failure() -> None:
     assert step_one.executed is True
     assert step_one.compensated is True
     assert step_two.compensated is False
+    assert len(event_publisher.created_order_ids) == 1
+    assert not event_publisher.confirmed_order_ids

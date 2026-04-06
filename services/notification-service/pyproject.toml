@@ -1,0 +1,55 @@
+[project]
+name = "food-delivery-notification-service"
+version = "0.1.0"
+description = "Notification Service - event-driven email and push delivery"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+authors = [
+    { name = "Food Delivery Team" }
+]
+
+dependencies = [
+    "food-delivery-shared",
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.25.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "structlog>=24.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "pytest-cov>=4.1.0",
+    "httpx>=0.25.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+
+[tool.uv.sources]
+food-delivery-shared = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+asyncio_default_test_loop_scope = "function"
+addopts = [
+    "-q",
+    "--disable-warnings",
+    "--cov=src",
+    "--cov-config=pyproject.toml",
+]
+
+[tool.coverage.run]
+data_file = "/tmp/coverage-notification-service"

@@ -5,6 +5,7 @@ from collections.abc import Sequence
 import structlog
 
 from src.application.dto.order import CreateOrderDTO, OrderResponseDTO, OrderSagaContext
+from src.application.interfaces.event_publisher import IOrderEventPublisher
 from src.application.interfaces.order_repository import IOrderRepository
 from src.application.interfaces.saga_step import ISagaStep
 from src.domain.entities.order import Order
@@ -17,9 +18,15 @@ logger = structlog.get_logger(__name__)
 class CreateOrderUseCase:
     """Orchestrates order creation through saga steps."""
 
-    def __init__(self, repository: IOrderRepository, saga_steps: Sequence[ISagaStep]) -> None:
+    def __init__(
+        self,
+        repository: IOrderRepository,
+        saga_steps: Sequence[ISagaStep],
+        event_publisher: IOrderEventPublisher,
+    ) -> None:
         self._repository = repository
         self._saga_steps = tuple(saga_steps)
+        self._event_publisher = event_publisher
 
     async def execute(self, dto: CreateOrderDTO) -> OrderResponseDTO:
         """Create order, run saga, and return final order state."""
@@ -39,6 +46,7 @@ class CreateOrderUseCase:
             items=items,
         )
         stored_order = await self._repository.create(order)
+        await self._publish_created_event(stored_order)
 
         context = OrderSagaContext(
             order_id=stored_order.id,
@@ -76,4 +84,19 @@ class CreateOrderUseCase:
 
         stored_order.confirm()
         updated_order = await self._repository.update(stored_order)
+        await self._publish_confirmed_event(updated_order)
         return OrderResponseDTO.from_entity(updated_order)
+
+    async def _publish_created_event(self, order: Order) -> None:
+        """Publish order created event without breaking core flow."""
+        try:
+            await self._event_publisher.publish_order_created(order)
+        except Exception:
+            logger.exception("order.events.publish_created_failed", order_id=str(order.id))
+
+    async def _publish_confirmed_event(self, order: Order) -> None:
+        """Publish order confirmed event without breaking core flow."""
+        try:
+            await self._event_publisher.publish_order_confirmed(order)
+        except Exception:
+            logger.exception("order.events.publish_confirmed_failed", order_id=str(order.id))

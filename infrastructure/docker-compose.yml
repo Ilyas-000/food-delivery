@@ -234,6 +234,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
       payment-service:
         condition: service_healthy
       delivery-service:
@@ -264,6 +266,8 @@ services:
       ORDER_SERVICE_RESTAURANT_SERVICE_URL: ${ORDER_SERVICE_RESTAURANT_SERVICE_URL:-http://restaurant-service:8002}
       ORDER_SERVICE_PAYMENT_SERVICE_URL: ${ORDER_SERVICE_PAYMENT_SERVICE_URL:-http://payment-service:8004}
       ORDER_SERVICE_DELIVERY_SERVICE_URL: ${ORDER_SERVICE_DELIVERY_SERVICE_URL:-http://delivery-service:8005}
+      ORDER_SERVICE_KAFKA_ENABLED: ${ORDER_SERVICE_KAFKA_ENABLED:-true}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     volumes:
       - ../services/order-service/src:/app/services/order-service/src:ro
     healthcheck:
@@ -307,6 +311,9 @@ services:
       dockerfile: services/delivery-service/Dockerfile
     container_name: food-delivery-delivery-service
     restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
     ports:
       - "8005:8005"
     environment:
@@ -316,6 +323,8 @@ services:
       DELIVERY_SERVICE_API_HOST: 0.0.0.0
       DELIVERY_SERVICE_API_PORT: 8005
       DELIVERY_SERVICE_API_PREFIX: /api/v1
+      DELIVERY_SERVICE_KAFKA_ENABLED: ${DELIVERY_SERVICE_KAFKA_ENABLED:-true}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     volumes:
       - ../services/delivery-service/src:/app/services/delivery-service/src:ro
     healthcheck:
@@ -323,6 +332,42 @@ services:
         [
           "CMD-SHELL",
           "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8005/health', timeout=5).read()\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  notification-service:
+    build:
+      context: ..
+      dockerfile: services/notification-service/Dockerfile
+    container_name: food-delivery-notification-service
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8006:8006"
+    environment:
+      NOTIFICATION_SERVICE_SERVICE_NAME: notification-service
+      NOTIFICATION_SERVICE_ENVIRONMENT: ${ENVIRONMENT:-development}
+      NOTIFICATION_SERVICE_DEBUG: ${DEBUG:-true}
+      NOTIFICATION_SERVICE_API_HOST: 0.0.0.0
+      NOTIFICATION_SERVICE_API_PORT: 8006
+      NOTIFICATION_SERVICE_API_PREFIX: /api/v1
+      NOTIFICATION_SERVICE_KAFKA_ENABLED: ${NOTIFICATION_SERVICE_KAFKA_ENABLED:-true}
+      NOTIFICATION_SERVICE_CONSUMER_GROUP: ${NOTIFICATION_SERVICE_CONSUMER_GROUP:-notification-service-group}
+      NOTIFICATION_SERVICE_MOCK_EMAIL_DOMAIN: ${NOTIFICATION_SERVICE_MOCK_EMAIL_DOMAIN:-notifications.local}
+      NOTIFICATION_SERVICE_MOCK_PUSH_PREFIX: ${NOTIFICATION_SERVICE_MOCK_PUSH_PREFIX:-device}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    volumes:
+      - ../services/notification-service/src:/app/services/notification-service/src:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8006/health', timeout=5).read()\"",
         ]
       interval: 30s
       timeout: 10s

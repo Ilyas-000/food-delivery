@@ -12,7 +12,8 @@
 - 🚧 `order-service` (saga orchestration, базовый API)
 - ✅ `payment-service` (lifecycle + saga compatibility)
 - ✅ `delivery-service` (contract lifecycle + tracking + gateway WS proxy)
-- ⚪ `notification-service`, `analytics-service`, `review-service` — в roadmap
+- ✅ `notification-service` (event-driven mock email/push, Phase 6 completed)
+- ⚪ `analytics-service`, `review-service` — в roadmap
 
 ## Архитектура
 
@@ -61,7 +62,7 @@ Infra:
 | Order Service | 8003 | 🚧 | order creation and saga orchestration |
 | Payment Service | 8004 | ✅ | payment reserve/confirm/refund/history + idempotency |
 | Delivery Service | 8005 | ✅ | courier lifecycle + tracking (Phase 5 completed, contract-stage) |
-| Notification Service | 8006 | ⚪ | planned |
+| Notification Service | 8006 | ✅ | event-driven email/push delivery + notification history |
 | Analytics Service | 8007 | ⚪ | planned |
 | Review Service | 8008 | ⚪ | planned |
 
@@ -126,6 +127,8 @@ make test-payment-integration
 make test-delivery
 make test-delivery-unit
 make test-delivery-integration
+make test-notification
+make test-notification-unit
 
 make dev-gateway
 make dev-user
@@ -133,6 +136,7 @@ make dev-restaurant
 make dev-order
 make dev-payment
 make dev-delivery
+make dev-notification
 ```
 
 `make test` запускает только repo-level тесты из `./tests` (если они есть).

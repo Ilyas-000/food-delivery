@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.interfaces.event_publisher import IOrderEventPublisher
 from src.application.interfaces.order_repository import IOrderRepository
 from src.application.interfaces.saga_step import ISagaStep
 from src.application.use_cases.create_order import CreateOrderUseCase
@@ -18,6 +19,7 @@ from src.infrastructure.clients.http_service_clients import (
 from src.infrastructure.database.repositories.sqlalchemy_order_repository import (
     SqlAlchemyOrderRepository,
 )
+from src.infrastructure.events.publisher import KafkaOrderEventPublisher
 from src.infrastructure.repositories.in_memory_order_repository import InMemoryOrderRepository
 from src.infrastructure.saga.http_steps import (
     AssignCourierStep as HttpAssignCourierStep,
@@ -40,6 +42,7 @@ from src.infrastructure.saga.mock_steps import (
 from src.interface.dependencies.database import get_optional_db_session
 
 _ORDER_REPOSITORY = InMemoryOrderRepository()
+_EVENT_PUBLISHER = KafkaOrderEventPublisher()
 
 
 async def get_order_repository(
@@ -52,6 +55,11 @@ async def get_order_repository(
         return SqlAlchemyOrderRepository(session)
 
     return _ORDER_REPOSITORY
+
+
+async def get_order_event_publisher() -> IOrderEventPublisher:
+    """Provide order event publisher."""
+    return _EVENT_PUBLISHER
 
 
 def _build_saga_steps() -> tuple[ISagaStep, ...]:
@@ -90,9 +98,14 @@ def _build_saga_steps() -> tuple[ISagaStep, ...]:
 
 async def get_create_order_use_case(
     repository: Annotated[IOrderRepository, Depends(get_order_repository)],
+    event_publisher: Annotated[IOrderEventPublisher, Depends(get_order_event_publisher)],
 ) -> CreateOrderUseCase:
     """Provide CreateOrderUseCase."""
-    return CreateOrderUseCase(repository=repository, saga_steps=_build_saga_steps())
+    return CreateOrderUseCase(
+        repository=repository,
+        saga_steps=_build_saga_steps(),
+        event_publisher=event_publisher,
+    )
 
 
 async def get_get_order_use_case(

@@ -6,11 +6,13 @@ WORKDIR /app
 
 COPY pyproject.toml ./pyproject.toml
 COPY uv.lock ./uv.lock
+COPY shared ./shared
 COPY services/delivery-service/pyproject.toml ./services/delivery-service/
 COPY services/delivery-service/README.md ./services/delivery-service/
 
 RUN uv venv /app/.venv && \
     . /app/.venv/bin/activate && \
+    uv pip install -e /app/shared && \
     uv pip install -e /app/services/delivery-service
 
 FROM python:3.12-slim AS runtime
@@ -20,6 +22,7 @@ RUN useradd -m -u 1000 delivery
 WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
+COPY --chown=delivery:delivery shared /app/shared
 COPY --chown=delivery:delivery services/delivery-service/src /app/services/delivery-service/src
 
 USER delivery
@@ -27,7 +30,7 @@ USER delivery
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app:/app/shared/src
 
 EXPOSE 8005
 

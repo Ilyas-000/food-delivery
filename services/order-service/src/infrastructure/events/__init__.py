@@ -1,1 +1,1 @@
-"""Order service event publishing infrastructure."""
+"""Order event infrastructure."""

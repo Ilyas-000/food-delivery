@@ -1,7 +1,8 @@
-.PHONY: help install dev-install setup-dev docker-ready up down restart logs health clean clean-image clean-images test test-all test-all-full test-unit test-integration test-e2e test-cov test-deps-up test-e2e-deps-up test-service-prepare test-service test-service-full test-service-unit test-service-integration test-service-e2e test-user test-gateway test-restaurant test-order test-payment test-delivery test-notification test-analytics test-user-unit test-gateway-unit test-restaurant-unit test-order-unit test-payment-unit test-delivery-unit test-notification-unit test-analytics-unit test-user-integration test-gateway-integration test-restaurant-integration test-order-integration test-payment-integration test-delivery-integration test-notification-integration test-analytics-integration test-user-e2e test-gateway-e2e test-restaurant-e2e test-order-e2e test-payment-e2e test-delivery-e2e test-notification-e2e test-analytics-e2e lint format type-check pre-commit migrate seed dev-payment dev-delivery dev-notification dev-analytics
+.PHONY: help install dev-install setup-dev docker-ready up down restart logs health clean clean-image clean-images test test-all test-all-full test-unit test-integration test-e2e test-cov test-deps-up test-e2e-deps-up test-service-prepare test-service test-service-full test-service-unit test-service-integration test-service-e2e test-user test-gateway test-restaurant test-order test-payment test-delivery test-notification test-analytics test-review test-user-unit test-gateway-unit test-restaurant-unit test-order-unit test-payment-unit test-delivery-unit test-notification-unit test-analytics-unit test-review-unit test-user-integration test-gateway-integration test-restaurant-integration test-order-integration test-payment-integration test-delivery-integration test-notification-integration test-analytics-integration test-review-integration test-user-e2e test-gateway-e2e test-restaurant-e2e test-order-e2e test-payment-e2e test-delivery-e2e test-notification-e2e test-analytics-e2e test-review-e2e lint format type-check pre-commit migrate seed dev-payment dev-delivery dev-notification dev-analytics dev-review
 
 # Default target
 .DEFAULT_GOAL := help
+MAKEFLAGS += --no-print-directory
 
 # Colors for output
 BLUE := \033[0;34m
@@ -14,7 +15,7 @@ COMPOSE := $(DOCKER_COMPOSE) --env-file .env -f infrastructure/docker-compose.ym
 COMPOSE_TEST := $(COMPOSE) --profile test
 WAIT_HTTP_RETRIES ?= 45
 WAIT_HTTP_SLEEP_SECONDS ?= 1
-TEST_STACK_SERVICES := postgres redis user-service restaurant-service payment-service delivery-service order-service
+TEST_STACK_SERVICES := postgres redis user-service restaurant-service payment-service delivery-service order-service review-service
 E2E_STACK_SERVICES := $(TEST_STACK_SERVICES) api-gateway
 
 help: ## Show this help message
@@ -118,171 +119,88 @@ test: ## Run repo-level tests from ./tests only
 	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
 		if find tests -type f -name "test_*.py" 2>/dev/null | grep -q .; then \
 			/opt/venv/bin/pytest; \
-		else \
-			echo "No root tests found in ./tests; skipping."; \
 		fi'
 
 test-deps-up: ## Start integration test dependencies and wait until healthy
 	@$(MAKE) docker-ready
 	@$(COMPOSE) up -d $(TEST_STACK_SERVICES)
+	@bash scripts/bootstrap-test-databases.sh
 	@$(MAKE) wait-http URL=http://localhost:8001/health WAIT_HTTP_RETRIES=30
 	@$(MAKE) wait-http URL=http://localhost:8002/health WAIT_HTTP_RETRIES=30
 	@$(MAKE) wait-http URL=http://localhost:8003/health WAIT_HTTP_RETRIES=30
 	@$(MAKE) wait-http URL=http://localhost:8004/health WAIT_HTTP_RETRIES=30
 	@$(MAKE) wait-http URL=http://localhost:8005/health WAIT_HTTP_RETRIES=30
+	@$(MAKE) wait-http URL=http://localhost:8008/health WAIT_HTTP_RETRIES=30
 
 test-e2e-deps-up: ## Start e2e test dependencies and wait until healthy
 	@$(MAKE) docker-ready
 	@$(COMPOSE) up -d $(E2E_STACK_SERVICES)
+	@bash scripts/bootstrap-test-databases.sh
 	@$(MAKE) wait-http URL=http://localhost:8000/health WAIT_HTTP_RETRIES=30
 	@$(MAKE) wait-http URL=http://localhost:8001/health WAIT_HTTP_RETRIES=30
 	@$(MAKE) wait-http URL=http://localhost:8002/health WAIT_HTTP_RETRIES=30
 	@$(MAKE) wait-http URL=http://localhost:8003/health WAIT_HTTP_RETRIES=30
 	@$(MAKE) wait-http URL=http://localhost:8004/health WAIT_HTTP_RETRIES=30
 	@$(MAKE) wait-http URL=http://localhost:8005/health WAIT_HTTP_RETRIES=30
+	@$(MAKE) wait-http URL=http://localhost:8008/health WAIT_HTTP_RETRIES=30
 
 test-all: ## Run repo + all services (unit + integration, excludes e2e)
 	@$(MAKE) docker-ready
 	@echo "$(BLUE)Running all tests in Docker...$(NC)"
 	@$(MAKE) test-deps-up
-	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
-		if find tests -type f -name "test_*.py" 2>/dev/null | grep -q .; then \
-			echo "Running repo tests in ./tests..."; \
-			/opt/venv/bin/pytest; \
-		else \
-			echo "No root tests found in ./tests; skipping."; \
-		fi; \
-		for svc in services/*; do \
-			if [ -d "$$svc" ]; then \
-				paths=""; \
-				if [ -d "$$svc/tests/unit" ]; then paths="$$paths tests/unit"; fi; \
-				if [ -d "$$svc/tests/integration" ]; then paths="$$paths tests/integration"; fi; \
-				if [ -n "$$paths" ]; then \
-					echo "Running unit+integration tests in $$svc..."; \
-					(cd "$$svc" && /opt/venv/bin/pytest -c pyproject.toml $$paths); \
-				else \
-					echo "No unit/integration tests in $$svc; skipping."; \
-				fi; \
-			fi; \
-		done'
+	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc './scripts/run-test-matrix.sh unit+integration'
 
 test-all-full: ## Run repo + all services (unit + integration + e2e)
 	@$(MAKE) docker-ready
 	@echo "$(BLUE)Running full test matrix in Docker (including e2e)...$(NC)"
 	@$(MAKE) test-e2e-deps-up
-	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
-		if find tests -type f -name "test_*.py" 2>/dev/null | grep -q .; then \
-			echo "Running repo tests in ./tests..."; \
-			/opt/venv/bin/pytest; \
-		else \
-			echo "No root tests found in ./tests; skipping."; \
-		fi; \
-		for svc in services/*; do \
-			if [ -d "$$svc" ]; then \
-				if [ -d "$$svc/tests" ]; then \
-					echo "Running all tests in $$svc..."; \
-					(cd "$$svc" && /opt/venv/bin/pytest -c pyproject.toml tests); \
-				else \
-					echo "No tests directory in $$svc; skipping."; \
-				fi; \
-			fi; \
-		done'
+	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc './scripts/run-test-matrix.sh all'
 
 test-unit: ## Run unit tests for all services
 	@$(MAKE) docker-ready
 	@echo "$(BLUE)Running unit tests in Docker...$(NC)"
-	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
-		if [ -d tests/unit ]; then \
-			echo "Running repo unit tests in ./tests/unit..."; \
-			/opt/venv/bin/pytest tests/unit; \
-		else \
-			echo "No repo unit tests found in ./tests/unit; skipping."; \
-		fi; \
-		for svc in services/*; do \
-			if [ -d "$$svc" ]; then \
-				if [ -d "$$svc/tests/unit" ]; then \
-					echo "Running unit tests in $$svc..."; \
-					(cd "$$svc" && /opt/venv/bin/pytest -c pyproject.toml tests/unit); \
-				else \
-					echo "No unit tests in $$svc; skipping."; \
-				fi; \
-			fi; \
-		done'
+	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc './scripts/run-test-matrix.sh unit'
 
 test-integration: ## Run integration tests for all services
 	@$(MAKE) docker-ready
 	@echo "$(BLUE)Running integration tests in Docker...$(NC)"
 	@$(MAKE) test-deps-up
-	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
-		if [ -d tests/integration ]; then \
-			echo "Running repo integration tests in ./tests/integration..."; \
-			/opt/venv/bin/pytest tests/integration; \
-		else \
-			echo "No repo integration tests found in ./tests/integration; skipping."; \
-		fi; \
-		for svc in services/*; do \
-			if [ -d "$$svc" ]; then \
-				if [ -d "$$svc/tests/integration" ]; then \
-					echo "Running integration tests in $$svc..."; \
-					(cd "$$svc" && /opt/venv/bin/pytest -c pyproject.toml tests/integration); \
-				else \
-					echo "No integration tests in $$svc; skipping."; \
-				fi; \
-			fi; \
-		done'
+	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc './scripts/run-test-matrix.sh integration'
 
 test-e2e: ## Run end-to-end tests for all services
 	@$(MAKE) docker-ready
 	@echo "$(BLUE)Running E2E tests in Docker...$(NC)"
 	@$(MAKE) test-e2e-deps-up
-	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
-		if [ -d tests/e2e ]; then \
-			echo "Running repo e2e tests in ./tests/e2e..."; \
-			/opt/venv/bin/pytest tests/e2e; \
-		else \
-			echo "No repo e2e tests found in ./tests/e2e; skipping."; \
-		fi; \
-		for svc in services/*; do \
-			if [ -d "$$svc" ]; then \
-				if [ -d "$$svc/tests/e2e" ]; then \
-					echo "Running E2E tests in $$svc..."; \
-					(cd "$$svc" && /opt/venv/bin/pytest -c pyproject.toml tests/e2e); \
-				else \
-					echo "No e2e tests in $$svc; skipping."; \
-				fi; \
-			fi; \
-		done'
+	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc './scripts/run-test-matrix.sh e2e'
 
 test-cov: ## Run tests with coverage report
 	@$(MAKE) docker-ready
 	@echo "$(BLUE)Running tests with coverage in Docker...$(NC)"
-	@$(COMPOSE_TEST) run --rm test-runner bash -lc 'set -e; \
-		for svc in services/*; do \
-			if [ -d "$$svc" ]; then \
-				echo "Running coverage in $$svc..."; \
-				(cd "$$svc" && /opt/venv/bin/pytest -c pyproject.toml); \
-			fi; \
-		done'
+	@$(COMPOSE_TEST) run --rm test-runner bash -lc './scripts/run-test-matrix.sh coverage'
 
 test-service-prepare: ## Start required dependencies for SERVICE integration/e2e tests
 	@$(MAKE) docker-ready
 ifdef SERVICE
 	@case "$(SERVICE)" in \
 		api-gateway) \
-			$(COMPOSE) up -d postgres redis user-service order-service kafka clickhouse analytics-service; \
+			$(COMPOSE) up -d postgres redis user-service order-service kafka clickhouse analytics-service review-service; \
+			bash scripts/bootstrap-test-databases.sh; \
 			$(MAKE) wait-http URL=http://localhost:8001/health WAIT_HTTP_RETRIES=30; \
 			$(MAKE) wait-http URL=http://localhost:8003/health WAIT_HTTP_RETRIES=30; \
 			$(MAKE) wait-http URL=http://localhost:8123/ping WAIT_HTTP_RETRIES=30; \
 			$(MAKE) wait-http URL=http://localhost:8007/health WAIT_HTTP_RETRIES=30; \
+			$(MAKE) wait-http URL=http://localhost:8008/health WAIT_HTTP_RETRIES=30; \
 			;; \
 		order-service) \
 			$(COMPOSE) up -d postgres redis restaurant-service payment-service delivery-service; \
+			bash scripts/bootstrap-test-databases.sh; \
 			$(MAKE) wait-http URL=http://localhost:8002/health WAIT_HTTP_RETRIES=30; \
 			$(MAKE) wait-http URL=http://localhost:8004/health WAIT_HTTP_RETRIES=30; \
 			$(MAKE) wait-http URL=http://localhost:8005/health WAIT_HTTP_RETRIES=30; \
 			;; \
-		user-service|restaurant-service) \
+		user-service|restaurant-service|review-service) \
 			$(COMPOSE) up -d postgres redis; \
+			bash scripts/bootstrap-test-databases.sh; \
 			;; \
 		payment-service|delivery-service|notification-service) \
 			;; \
@@ -303,6 +221,9 @@ endif
 test-service: ## Run unit + integration tests for SERVICE (excludes e2e)
 	@echo "$(BLUE)Running service unit+integration tests in Docker...$(NC)"
 	@$(MAKE) test-service-prepare SERVICE=$(SERVICE)
+	@printf "\n$(BLUE)============================================================$(NC)\n"
+	@printf "$(BLUE)==  %s | %s$(NC)\n" "$(SERVICE)" "unit+integration"
+	@printf "$(BLUE)============================================================$(NC)\n\n"
 	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
 		cd services/$(SERVICE); \
 		paths=""; \
@@ -317,6 +238,9 @@ test-service: ## Run unit + integration tests for SERVICE (excludes e2e)
 test-service-full: ## Run all tests for a specific service (including e2e)
 	@echo "$(BLUE)Running full service test matrix in Docker...$(NC)"
 	@$(MAKE) test-service-prepare SERVICE=$(SERVICE)
+	@printf "\n$(BLUE)============================================================$(NC)\n"
+	@printf "$(BLUE)==  %s | %s$(NC)\n" "$(SERVICE)" "full test matrix"
+	@printf "$(BLUE)============================================================$(NC)\n\n"
 	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
 		cd services/$(SERVICE); \
 		if [ -d tests ]; then \
@@ -328,7 +252,10 @@ test-service-full: ## Run all tests for a specific service (including e2e)
 test-service-unit: ## Run unit tests for a specific service (SERVICE=name)
 	@$(MAKE) docker-ready
 ifdef SERVICE
-	$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
+	@printf "\n$(BLUE)============================================================$(NC)\n"
+	@printf "$(BLUE)==  %s | %s$(NC)\n" "$(SERVICE)" "unit"
+	@printf "$(BLUE)============================================================$(NC)\n\n"
+	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
 		cd services/$(SERVICE); \
 		if [ -d tests/unit ]; then \
 			/opt/venv/bin/pytest -c pyproject.toml tests/unit; \
@@ -343,7 +270,10 @@ endif
 test-service-integration: ## Run integration tests for a specific service (SERVICE=name)
 	@$(MAKE) test-service-prepare SERVICE=$(SERVICE)
 ifdef SERVICE
-	$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
+	@printf "\n$(BLUE)============================================================$(NC)\n"
+	@printf "$(BLUE)==  %s | %s$(NC)\n" "$(SERVICE)" "integration"
+	@printf "$(BLUE)============================================================$(NC)\n\n"
+	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
 		cd services/$(SERVICE); \
 		if [ -d tests/integration ]; then \
 			/opt/venv/bin/pytest -c pyproject.toml tests/integration; \
@@ -358,7 +288,10 @@ endif
 test-service-e2e: ## Run e2e tests for a specific service (SERVICE=name)
 	@$(MAKE) test-service-prepare SERVICE=$(SERVICE)
 ifdef SERVICE
-	$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
+	@printf "\n$(BLUE)============================================================$(NC)\n"
+	@printf "$(BLUE)==  %s | %s$(NC)\n" "$(SERVICE)" "e2e"
+	@printf "$(BLUE)============================================================$(NC)\n\n"
+	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
 		cd services/$(SERVICE); \
 		if [ -d tests/e2e ]; then \
 			/opt/venv/bin/pytest -c pyproject.toml tests/e2e; \
@@ -394,6 +327,9 @@ test-notification: ## Run tests for notification service
 test-analytics: ## Run tests for analytics service
 	@$(MAKE) test-service SERVICE=analytics-service
 
+test-review: ## Run tests for review service
+	@$(MAKE) test-service SERVICE=review-service
+
 test-user-unit: ## Run unit tests for user service
 	@$(MAKE) test-service-unit SERVICE=user-service
 
@@ -417,6 +353,9 @@ test-notification-unit: ## Run unit tests for notification service
 
 test-analytics-unit: ## Run unit tests for analytics service
 	@$(MAKE) test-service-unit SERVICE=analytics-service
+
+test-review-unit: ## Run unit tests for review service
+	@$(MAKE) test-service-unit SERVICE=review-service
 
 test-user-integration: ## Run integration tests for user service
 	@$(MAKE) test-service-integration SERVICE=user-service
@@ -442,6 +381,9 @@ test-notification-integration: ## Run integration tests for notification service
 test-analytics-integration: ## Run integration tests for analytics service
 	@$(MAKE) test-service-integration SERVICE=analytics-service
 
+test-review-integration: ## Run integration tests for review service
+	@$(MAKE) test-service-integration SERVICE=review-service
+
 test-user-e2e: ## Run e2e tests for user service
 	@$(MAKE) test-service-e2e SERVICE=user-service
 
@@ -466,6 +408,9 @@ test-notification-e2e: ## Run e2e tests for notification service
 test-analytics-e2e: ## Run e2e tests for analytics service
 	@$(MAKE) test-service-e2e SERVICE=analytics-service
 
+test-review-e2e: ## Run e2e tests for review service
+	@$(MAKE) test-service-e2e SERVICE=review-service
+
 lint: ## Run ruff linter
 	@echo "$(BLUE)Running linter...$(NC)"
 	ruff check .
@@ -486,6 +431,7 @@ type-check: ## Run mypy type checker
 	MYPYPATH=shared/src:services/delivery-service mypy services/delivery-service/src
 	MYPYPATH=shared/src:services/notification-service mypy services/notification-service/src
 	MYPYPATH=shared/src:services/analytics-service mypy services/analytics-service/src
+	MYPYPATH=shared/src:services/review-service mypy services/review-service/src
 	MYPYPATH=shared/src mypy shared/src
 
 pre-commit: ## Run all pre-commit hooks
@@ -535,6 +481,10 @@ dev-notification: ## Run Notification Service locally
 dev-analytics: ## Run Analytics Service locally
 	@echo "$(BLUE)Starting Analytics Service...$(NC)"
 	cd services/analytics-service && uvicorn src.main:app --reload --port 8007
+
+dev-review: ## Run Review Service locally
+	@echo "$(BLUE)Starting Review Service...$(NC)"
+	cd services/review-service && uvicorn src.main:app --reload --port 8008
 
 ## Kafka
 

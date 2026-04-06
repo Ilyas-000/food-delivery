@@ -4,7 +4,7 @@ import asyncio
 from collections import defaultdict
 from contextlib import suppress
 import json
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import WebSocket
@@ -136,7 +136,7 @@ class OrderTrackingBroadcaster:
             with suppress(Exception):
                 await pubsub.unsubscribe(channel)
             with suppress(Exception):
-                await pubsub.aclose()
+                await cast(Any, pubsub).aclose()
             self._listener_tasks.pop(order_id, None)
 
     @staticmethod

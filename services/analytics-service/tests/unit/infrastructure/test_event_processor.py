@@ -37,6 +37,7 @@ async def test_event_processor_ingests_supported_events() -> None:
             aggregate_id="assignment-1",
             order_id="order-1",
             restaurant_id="restaurant-1",
+            courier_id="courier-1",
         ).model_dump(mode="json")
     )
     await processor.process_event(

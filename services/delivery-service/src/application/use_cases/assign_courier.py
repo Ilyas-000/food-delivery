@@ -4,6 +4,7 @@ import structlog
 
 from src.application.dto.delivery import AssignCourierDTO, DeliveryAssignmentResponseDTO
 from src.application.interfaces.assignment_repository import IAssignmentRepository
+from src.application.interfaces.courier_allocator import ICourierAllocator
 from src.application.interfaces.event_publisher import IDeliveryEventPublisher
 from src.domain.entities.assignment import DeliveryAssignment
 
@@ -17,15 +18,18 @@ class AssignCourierUseCase:
         self,
         repository: IAssignmentRepository,
         event_publisher: IDeliveryEventPublisher,
+        courier_allocator: ICourierAllocator,
     ) -> None:
         self._repository = repository
         self._event_publisher = event_publisher
+        self._courier_allocator = courier_allocator
 
     async def execute(self, dto: AssignCourierDTO) -> DeliveryAssignmentResponseDTO:
         """Assign courier for order."""
         assignment = DeliveryAssignment.create(
             order_id=dto.order_id,
             restaurant_id=dto.restaurant_id,
+            courier_id=dto.courier_id or self._courier_allocator.allocate(),
         )
         stored = await self._repository.create(assignment)
         try:

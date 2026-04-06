@@ -1,6 +1,7 @@
 """Delivery Service settings."""
 
 from functools import cached_property, lru_cache
+from uuid import UUID
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -43,11 +44,23 @@ class Settings(BaseSettings):
     redis_password: str | None = None
     redis_channel_prefix: str = "delivery"
     kafka_enabled: bool = False
+    mock_courier_ids: str = (
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1,"
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2,"
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3"
+    )
 
     @cached_property
     def kafka(self) -> KafkaSettings:
         """Get shared Kafka settings."""
         return KafkaSettings()
+
+    @cached_property
+    def courier_ids(self) -> tuple[UUID, ...]:
+        """Parse configured courier identities for local assignment flow."""
+        return tuple(
+            UUID(raw_id.strip()) for raw_id in self.mock_courier_ids.split(",") if raw_id.strip()
+        )
 
 
 @lru_cache

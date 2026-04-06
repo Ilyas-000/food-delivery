@@ -180,3 +180,34 @@
 **Effort:** 0.5-1 час
 **Phase:** 3/9
 **Status:** 🟡 Pending
+
+---
+
+## 🔧 Technical Debt - Phase 8 Review Scope
+
+### 1. Courier identity is still a mock dispatch pool, not a dedicated domain
+**Проблема:**
+- `delivery-service` теперь хранит и отдает `courier_id`, поэтому courier reviews работают.
+- Но источник courier identity пока учебный: локально/в dev режиме он берется из
+  конфигурируемого `DELIVERY_SERVICE_MOCK_COURIER_IDS`.
+- Это закрывает контракт Phase 8, но не заменяет полноценный courier-domain/source of truth.
+
+**Что уже сделано:**
+- Реализован restaurant + courier review flow с проверкой владельца заказа и завершенной доставки.
+- `delivery-service` assignment/read contract теперь возвращает `courier_id`.
+- `review-service` переведен на общий target model (`restaurant` / `courier`).
+
+**Что осталось сделать:**
+- При появлении отдельного courier-domain заменить mock courier pool на реальный источник identity.
+- При необходимости расширить analytics/read models агрегатами рейтингов по courier/restaurant.
+
+**Файлы:**
+- `services/delivery-service/src/domain/entities/assignment.py`
+- `services/delivery-service/src/infrastructure/repositories/round_robin_courier_allocator.py`
+- `services/delivery-service/src/interface/api/v1/routes/deliveries.py`
+- `services/review-service/src/*`
+
+**Приоритет:** 🟠 Medium
+**Effort:** 1-2 дня
+**Phase:** 8
+**Status:** 🟡 Deferred Follow-up

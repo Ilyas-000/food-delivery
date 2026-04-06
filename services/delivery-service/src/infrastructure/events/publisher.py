@@ -230,5 +230,6 @@ class KafkaDeliveryEventPublisher:
             aggregate_id=str(assignment.id),
             order_id=str(assignment.order_id),
             restaurant_id=str(assignment.restaurant_id),
+            courier_id=str(assignment.courier_id),
         )
         await publish_model_event(event)

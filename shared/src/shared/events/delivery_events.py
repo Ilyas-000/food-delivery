@@ -13,3 +13,4 @@ class DeliveryAssignedEvent(BaseEvent):
 
     order_id: str
     restaurant_id: str
+    courier_id: str

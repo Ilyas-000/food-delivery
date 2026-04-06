@@ -13,6 +13,7 @@ class AssignCourierDTO(BaseModel):
 
     order_id: UUID
     restaurant_id: UUID
+    courier_id: UUID | None = None
 
 
 class UpdateDeliveryLocationDTO(BaseModel):
@@ -29,6 +30,7 @@ class DeliveryAssignmentResponseDTO(BaseModel):
     id: UUID
     order_id: UUID
     restaurant_id: UUID
+    courier_id: UUID
     status: str
     latitude: float | None
     longitude: float | None
@@ -49,6 +51,7 @@ class DeliveryAssignmentResponseDTO(BaseModel):
             id=assignment.id,
             order_id=assignment.order_id,
             restaurant_id=assignment.restaurant_id,
+            courier_id=assignment.courier_id,
             status=assignment.status.value,
             latitude=latitude,
             longitude=longitude,

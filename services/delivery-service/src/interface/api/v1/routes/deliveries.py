@@ -9,6 +9,7 @@ from src.application.dto.delivery import AssignCourierDTO, UpdateDeliveryLocatio
 from src.application.use_cases.assign_courier import AssignCourierUseCase
 from src.application.use_cases.cancel_assignment import CancelAssignmentUseCase
 from src.application.use_cases.complete_delivery import CompleteDeliveryUseCase
+from src.application.use_cases.get_assignment_by_order import GetAssignmentByOrderUseCase
 from src.application.use_cases.update_delivery_location import UpdateDeliveryLocationUseCase
 from src.infrastructure.events.publisher import publish_event
 from src.interface.api.v1.schemas.delivery import (
@@ -18,6 +19,7 @@ from src.interface.api.v1.schemas.delivery import (
 )
 from src.interface.dependencies.delivery import (
     get_assign_courier_use_case,
+    get_assignment_by_order_use_case,
     get_cancel_assignment_use_case,
     get_complete_delivery_use_case,
     get_order_tracking_broadcaster,
@@ -41,6 +43,7 @@ async def assign_courier(
     dto = AssignCourierDTO(
         order_id=request.order_id,
         restaurant_id=request.restaurant_id,
+        courier_id=request.courier_id,
     )
     result = await use_case.execute(dto)
     await publish_event(
@@ -50,6 +53,7 @@ async def assign_courier(
         payload={
             "order_id": str(result.order_id),
             "restaurant_id": str(result.restaurant_id),
+            "courier_id": str(result.courier_id),
             "status": result.status,
         },
     )
@@ -67,6 +71,23 @@ async def cancel_assignment(
     """Cancel delivery assignment."""
     await use_case.execute(assignment_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+    "/orders/{order_id}",
+    response_model=DeliveryAssignmentResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_assignment_by_order(
+    order_id: UUID,
+    use_case: Annotated[
+        GetAssignmentByOrderUseCase,
+        Depends(get_assignment_by_order_use_case),
+    ],
+) -> DeliveryAssignmentResponse:
+    """Get delivery assignment by order id."""
+    result = await use_case.execute(order_id)
+    return DeliveryAssignmentResponse.from_dto(result)
 
 
 @router.post(

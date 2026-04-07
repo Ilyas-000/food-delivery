@@ -1,4 +1,4 @@
-.PHONY: help install dev-install setup-dev docker-ready up down restart logs health clean clean-image clean-images test test-all test-all-full test-unit test-integration test-e2e test-cov test-deps-up test-e2e-deps-up test-service-prepare test-service test-service-full test-service-unit test-service-integration test-service-e2e test-user test-gateway test-restaurant test-order test-payment test-delivery test-notification test-analytics test-review test-user-unit test-gateway-unit test-restaurant-unit test-order-unit test-payment-unit test-delivery-unit test-notification-unit test-analytics-unit test-review-unit test-user-integration test-gateway-integration test-restaurant-integration test-order-integration test-payment-integration test-delivery-integration test-notification-integration test-analytics-integration test-review-integration test-user-e2e test-gateway-e2e test-restaurant-e2e test-order-e2e test-payment-e2e test-delivery-e2e test-notification-e2e test-analytics-e2e test-review-e2e lint format type-check pre-commit migrate seed dev-payment dev-delivery dev-notification dev-analytics dev-review
+.PHONY: help install dev-install setup-dev docker-ready up down restart logs health clean clean-image clean-images test test-all test-all-full test-unit test-integration test-e2e test-e2e-load test-cov test-deps-up test-e2e-deps-up test-service-prepare test-service test-service-full test-service-unit test-service-integration test-service-e2e test-user test-gateway test-restaurant test-order test-payment test-delivery test-notification test-analytics test-review test-user-unit test-gateway-unit test-restaurant-unit test-order-unit test-payment-unit test-delivery-unit test-notification-unit test-analytics-unit test-review-unit test-user-integration test-gateway-integration test-restaurant-integration test-order-integration test-payment-integration test-delivery-integration test-notification-integration test-analytics-integration test-review-integration test-user-e2e test-gateway-e2e test-restaurant-e2e test-order-e2e test-payment-e2e test-delivery-e2e test-notification-e2e test-analytics-e2e test-review-e2e lint format type-check pre-commit migrate seed dev-payment dev-delivery dev-notification dev-analytics dev-review
 
 # Default target
 .DEFAULT_GOAL := help
@@ -16,7 +16,7 @@ COMPOSE_TEST := $(COMPOSE) --profile test
 WAIT_HTTP_RETRIES ?= 45
 WAIT_HTTP_SLEEP_SECONDS ?= 1
 TEST_STACK_SERVICES := postgres redis user-service restaurant-service payment-service delivery-service order-service review-service
-E2E_STACK_SERVICES := $(TEST_STACK_SERVICES) api-gateway
+E2E_STACK_SERVICES := $(TEST_STACK_SERVICES) kafka clickhouse notification-service analytics-service api-gateway
 
 help: ## Show this help message
 	@echo "$(BLUE)Food Delivery - Available Commands$(NC)"
@@ -123,7 +123,7 @@ test: ## Run repo-level tests from ./tests only
 
 test-deps-up: ## Start integration test dependencies and wait until healthy
 	@$(MAKE) docker-ready
-	@$(COMPOSE) up -d $(TEST_STACK_SERVICES)
+	@$(COMPOSE) up -d --force-recreate $(TEST_STACK_SERVICES)
 	@bash scripts/bootstrap-test-databases.sh
 	@$(MAKE) wait-http URL=http://localhost:8001/health WAIT_HTTP_RETRIES=30
 	@$(MAKE) wait-http URL=http://localhost:8002/health WAIT_HTTP_RETRIES=30
@@ -134,15 +134,19 @@ test-deps-up: ## Start integration test dependencies and wait until healthy
 
 test-e2e-deps-up: ## Start e2e test dependencies and wait until healthy
 	@$(MAKE) docker-ready
-	@$(COMPOSE) up -d $(E2E_STACK_SERVICES)
+	@$(COMPOSE) up -d --force-recreate $(E2E_STACK_SERVICES)
+	@bash infrastructure/kafka/create-topics.sh
 	@bash scripts/bootstrap-test-databases.sh
-	@$(MAKE) wait-http URL=http://localhost:8000/health WAIT_HTTP_RETRIES=30
-	@$(MAKE) wait-http URL=http://localhost:8001/health WAIT_HTTP_RETRIES=30
-	@$(MAKE) wait-http URL=http://localhost:8002/health WAIT_HTTP_RETRIES=30
-	@$(MAKE) wait-http URL=http://localhost:8003/health WAIT_HTTP_RETRIES=30
-	@$(MAKE) wait-http URL=http://localhost:8004/health WAIT_HTTP_RETRIES=30
-	@$(MAKE) wait-http URL=http://localhost:8005/health WAIT_HTTP_RETRIES=30
-	@$(MAKE) wait-http URL=http://localhost:8008/health WAIT_HTTP_RETRIES=30
+	@$(MAKE) wait-http URL=http://localhost:8000/health WAIT_HTTP_RETRIES=60
+	@$(MAKE) wait-http URL=http://localhost:8001/health WAIT_HTTP_RETRIES=60
+	@$(MAKE) wait-http URL=http://localhost:8002/health WAIT_HTTP_RETRIES=60
+	@$(MAKE) wait-http URL=http://localhost:8003/health WAIT_HTTP_RETRIES=60
+	@$(MAKE) wait-http URL=http://localhost:8004/health WAIT_HTTP_RETRIES=60
+	@$(MAKE) wait-http URL=http://localhost:8005/health WAIT_HTTP_RETRIES=60
+	@$(MAKE) wait-http URL=http://localhost:8006/health WAIT_HTTP_RETRIES=60
+	@$(MAKE) wait-http URL=http://localhost:8123/ping WAIT_HTTP_RETRIES=60
+	@$(MAKE) wait-http URL=http://localhost:8007/health WAIT_HTTP_RETRIES=60
+	@$(MAKE) wait-http URL=http://localhost:8008/health WAIT_HTTP_RETRIES=60
 
 test-all: ## Run repo + all services (unit + integration, excludes e2e)
 	@$(MAKE) docker-ready
@@ -172,6 +176,16 @@ test-e2e: ## Run end-to-end tests for all services
 	@echo "$(BLUE)Running E2E tests in Docker...$(NC)"
 	@$(MAKE) test-e2e-deps-up
 	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc './scripts/run-test-matrix.sh e2e'
+
+test-e2e-load: ## Run opt-in repo-level load smoke for concurrent order creation
+	@$(MAKE) docker-ready
+	@echo "$(BLUE)Running E2E load smoke in Docker...$(NC)"
+	@$(MAKE) test-e2e-deps-up
+	@printf "\n$(BLUE)============================================================$(NC)\n"
+	@printf "$(BLUE)==  %s | %s$(NC)\n" "REPO" "e2e-load"
+	@printf "$(BLUE)============================================================$(NC)\n\n"
+	@$(COMPOSE_TEST) run --rm --no-deps test-runner bash -lc 'set -e; \
+		RUN_E2E_LOAD=1 E2E_CONCURRENT_ORDERS=$${E2E_CONCURRENT_ORDERS:-10} /opt/venv/bin/pytest tests/e2e/test_order_journey.py -c pyproject.toml -m "e2e and slow"'
 
 test-cov: ## Run tests with coverage report
 	@$(MAKE) docker-ready

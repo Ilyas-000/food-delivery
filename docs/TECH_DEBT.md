@@ -211,3 +211,91 @@
 **Effort:** 1-2 дня
 **Phase:** 8
 **Status:** 🟡 Deferred Follow-up
+
+---
+
+## 🔧 Technical Debt - Assistant Proposals (Performance & Async Architecture)
+
+> Ниже мои предложения как engineering follow-up после закрытия Phase 9.
+> Это не зафиксированный roadmap scope, а рекомендованные улучшения по итогам e2e/load-проверок.
+
+### 1. Order creation still uses a synchronous HTTP critical path
+**Проблема:**
+- `POST /api/v1/orders` сейчас держит клиентский HTTP-запрос открытым через весь orchestration flow.
+- Реальный critical path проходит через `gateway -> order-service -> restaurant/payment/delivery`.
+- Из-за этого latency заказа масштабируется хуже, чем у truly async workflow, и gateway timeout приходится подстраивать под saga duration.
+
+**Почему это важно:**
+- событийная архитектура даёт value в downstream side-effects, но не ускоряет сам request, пока заказ создаётся синхронно;
+- under load bottleneck остаётся в order orchestration path, а не в consumer side-effects.
+
+**Что предлагаю:**
+- перевести `POST /api/v1/orders` на async contract (`202 Accepted`);
+- возвращать `order_id` сразу после приёма команды;
+- orchestration выполнять в background worker / event-driven pipeline;
+- финальный статус заказа читать через `GET /orders/{id}` и/или websocket/event stream.
+
+**Приоритет:** 🔴 High
+**Effort:** 2-4 дня
+**Phase:** 10+
+**Status:** 🟡 Proposed by assistant
+
+### 2. Kafka topic bootstrap is infrastructure-critical, but was not part of test/service startup
+**Проблема:**
+- `KAFKA_AUTO_CREATE_TOPICS_ENABLE=false`, но topics не гарантировались автоматически до первого боевого трафика;
+- из-за этого producer/consumer path ловил `UnknownTopicOrPartitionError`;
+- это ухудшало startup reliability и искажало load-тесты.
+
+**Что уже сделано:**
+- в `make test-e2e` / `make test-e2e-load` добавлен автоматический вызов `infrastructure/kafka/create-topics.sh`.
+
+**Что осталось сделать:**
+- оформить topic bootstrap как штатную часть локального/dev startup, а не только тестового пайплайна;
+- решить, где должен жить source of truth для topics:
+  - infra bootstrap;
+  - init container / provisioning job;
+  - declarative topic management.
+
+**Приоритет:** 🟠 Medium
+**Effort:** 1-2 часа
+**Phase:** 10
+**Status:** 🟡 Proposed by assistant
+
+### 3. Readiness and liveness are still partially mixed for Kafka-backed services
+**Проблема:**
+- сервис может быть жив как HTTP/API process, но ещё не быть fully ready as Kafka consumer;
+- при жёстком старте consumers в lifespan это приводило к startup crashes;
+- сейчас startup-resilience улучшена retry-loop’ом, но health semantics всё ещё стоит разделить строже.
+
+**Что уже сделано:**
+- `notification-service` и `analytics-service` больше не падают при отсутствии Kafka topics на старте;
+- consumer startup переведён на deferred background retry.
+
+**Что осталось сделать:**
+- явно развести liveness и readiness semantics;
+- решить, должен ли `/health` отражать “process alive” или “all dependencies ready”;
+- при необходимости выделить отдельные readiness endpoints для orchestration/compose.
+
+**Приоритет:** 🟠 Medium
+**Effort:** 0.5-1 день
+**Phase:** 10
+**Status:** 🟡 Proposed by assistant
+
+### 4. Load smoke exists, but there is no real performance SLA yet
+**Проблема:**
+- текущий `make test-e2e-load` — это smoke-level guardrail на `10` concurrent orders;
+- он полезен для регрессий, но не отвечает на вопрос о реальной производительности системы;
+- нет явных целей по `p95`, throughput, consumer lag, recovery time.
+
+**Что предлагаю:**
+- зафиксировать performance budget для Phase 10+:
+  - p95/p99 для `POST /orders`;
+  - throughput для order creation;
+  - consumer lag thresholds;
+  - end-to-end time from order accepted to order confirmed;
+- после этого расширить load tests с отдельным сценарием benchmark, а не смешивать его с функциональным e2e.
+
+**Приоритет:** 🟠 Medium
+**Effort:** 0.5-1 день на определение SLA, дальше отдельно по инструментам
+**Phase:** 10+
+**Status:** 🟡 Proposed by assistant

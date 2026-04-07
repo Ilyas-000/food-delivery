@@ -2,6 +2,7 @@ services:
   postgres:
     image: postgres:15-alpine
     container_name: food-delivery-postgres
+    init: true
     restart: unless-stopped
     env_file:
       - ../.env
@@ -23,6 +24,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: food-delivery-redis
+    init: true
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
@@ -38,6 +40,7 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
     container_name: food-delivery-zookeeper
+    init: true
     restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -47,13 +50,14 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "echo srvr | nc -w 2 localhost 2181 | grep 'Zookeeper version'"]
       interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      timeout: 15s
+      retries: 10
+      start_period: 30s
 
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: food-delivery-kafka
+    init: true
     restart: unless-stopped
     depends_on:
       zookeeper:
@@ -75,9 +79,9 @@ services:
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+      timeout: 30s
+      retries: 10
+      start_period: 60s
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -96,6 +100,7 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:24.8
     container_name: food-delivery-clickhouse
+    init: true
     restart: unless-stopped
     ports:
       - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
@@ -109,9 +114,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
       interval: 10s
-      timeout: 5s
+      timeout: 15s
       retries: 10
-      start_period: 20s
+      start_period: 30s
 
   pgadmin:
     image: dpage/pgadmin4:8
@@ -138,6 +143,7 @@ services:
       context: ..
       dockerfile: services/user-service/Dockerfile
     container_name: food-delivery-user-service
+    init: true
     restart: unless-stopped
     depends_on:
       postgres:
@@ -197,6 +203,7 @@ services:
       context: ..
       dockerfile: services/restaurant-service/Dockerfile
     container_name: food-delivery-restaurant-service
+    init: true
     restart: unless-stopped
     depends_on:
       postgres:
@@ -248,6 +255,7 @@ services:
       context: ..
       dockerfile: services/order-service/Dockerfile
     container_name: food-delivery-order-service
+    init: true
     restart: unless-stopped
     depends_on:
       postgres:
@@ -293,15 +301,16 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
+      timeout: 30s
+      retries: 5
+      start_period: 40s
 
   payment-service:
     build:
       context: ..
       dockerfile: services/payment-service/Dockerfile
     container_name: food-delivery-payment-service
+    init: true
     restart: unless-stopped
     ports:
       - "8004:8004"
@@ -321,15 +330,16 @@ services:
           "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8004/health', timeout=5).read()\"",
         ]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
 
   delivery-service:
     build:
       context: ..
       dockerfile: services/delivery-service/Dockerfile
     container_name: food-delivery-delivery-service
+    init: true
     restart: unless-stopped
     depends_on:
       kafka:
@@ -354,15 +364,16 @@ services:
           "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8005/health', timeout=5).read()\"",
         ]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
 
   notification-service:
     build:
       context: ..
       dockerfile: services/notification-service/Dockerfile
     container_name: food-delivery-notification-service
+    init: true
     restart: unless-stopped
     depends_on:
       kafka:
@@ -390,15 +401,16 @@ services:
           "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8006/health', timeout=5).read()\"",
         ]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
 
   analytics-service:
     build:
       context: ..
       dockerfile: services/analytics-service/Dockerfile
     container_name: food-delivery-analytics-service
+    init: true
     restart: unless-stopped
     depends_on:
       kafka:
@@ -433,15 +445,16 @@ services:
           "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8007/health', timeout=5).read()\"",
         ]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
 
   review-service:
     build:
       context: ..
       dockerfile: services/review-service/Dockerfile
     container_name: food-delivery-review-service
+    init: true
     restart: unless-stopped
     depends_on:
       postgres:
@@ -480,15 +493,16 @@ services:
           "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8008/health', timeout=5).read()\"",
         ]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
 
   api-gateway:
     build:
       context: ..
       dockerfile: services/api-gateway/Dockerfile
     container_name: food-delivery-api-gateway
+    init: true
     restart: unless-stopped
     depends_on:
       - redis
@@ -527,6 +541,7 @@ services:
       GATEWAY_DELIVERY_SERVICE_URL: ${GATEWAY_DELIVERY_SERVICE_URL:-http://delivery-service:8005}
       GATEWAY_ANALYTICS_SERVICE_URL: ${GATEWAY_ANALYTICS_SERVICE_URL:-http://analytics-service:8007}
       GATEWAY_REVIEW_SERVICE_URL: ${GATEWAY_REVIEW_SERVICE_URL:-http://review-service:8008}
+      GATEWAY_PROXY_TIMEOUT_ORDER: 30.0
 
       # Circuit Breaker
       GATEWAY_CIRCUIT_BREAKER_FAILURE_THRESHOLD: 5
@@ -562,15 +577,16 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import httpx; httpx.get('http://localhost:8000/health', timeout=5.0)\""]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
 
   test-runner:
     profiles: ["test"]
     build:
       context: ..
       dockerfile: infrastructure/docker/test-runner.Dockerfile
+    init: true
     depends_on:
       postgres:
         condition: service_healthy

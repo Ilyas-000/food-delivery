@@ -46,17 +46,6 @@ async def assign_courier(
         courier_id=request.courier_id,
     )
     result = await use_case.execute(dto)
-    await publish_event(
-        event_type="delivery-service.delivery.assigned",
-        aggregate_type="delivery",
-        aggregate_id=str(result.id),
-        payload={
-            "order_id": str(result.order_id),
-            "restaurant_id": str(result.restaurant_id),
-            "courier_id": str(result.courier_id),
-            "status": result.status,
-        },
-    )
     return DeliveryAssignmentResponse.from_dto(result)
 
 

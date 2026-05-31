@@ -1,6 +1,6 @@
 # Delivery Service
 
-Сервис доставки. Назначает курьера для заказа, хранит текущее assignment-состояние и отдаёт WebSocket tracking.
+Сервис доставки. Назначает курьера для заказа, хранит текущее assignment-состояние в PostgreSQL и отдаёт WebSocket tracking.
 
 ## Назначение
 
@@ -64,10 +64,15 @@ make dev-delivery
 Настройки читаются из `services/delivery-service/src/config.py` с префиксом `DELIVERY_SERVICE_`.
 
 Ключевые группы:
+- PostgreSQL host/port/db name/user/password (`POSTGRES_*` + `DELIVERY_SERVICE_DB_*`);
 - realtime backend;
 - Redis host/port/db/channel prefix;
 - Kafka enabled flag;
 - mock courier id pool.
+
+## Хранилище
+
+Assignment-состояние хранится в PostgreSQL (таблица `delivery_assignments`). Схема управляется через Alembic; миграции применяются на старте контейнера (`docker-entrypoint.sh` → `alembic upgrade head`).
 
 ## Тестирование
 
@@ -79,6 +84,5 @@ make test-delivery-integration
 
 ## Ограничения
 
-- Assignment repository in-memory.
 - Courier identity берётся из mock-пула, отдельного courier domain пока нет.
 - Redis Pub/Sub не сохраняет пропущенные tracking updates для отключённых клиентов.

@@ -6,6 +6,22 @@ from uuid import UUID
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class PostgresSettings(BaseSettings):
+    """Shared PostgreSQL settings."""
+
+    model_config = SettingsConfigDict(
+        env_file="../../.env",
+        env_prefix="POSTGRES_",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    host: str = "localhost"
+    port: int = 5432
+    user: str = "postgres"
+    password: str = "postgres"
+
+
 class KafkaSettings(BaseSettings):
     """Shared Kafka settings."""
 
@@ -46,11 +62,35 @@ class Settings(BaseSettings):
     redis_password: str | None = None
     redis_channel_prefix: str = "delivery"
     kafka_enabled: bool = False
+
+    db_name: str = "delivery_service_db"
+    db_user: str | None = None
+    db_password: str | None = None
+    database_pool_size: int = 10
+    database_max_overflow: int = 20
+    database_echo: bool = False
+    test_database_url: str | None = None
+
     mock_courier_ids: str = (
         "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1,"
         "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2,"
         "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3"
     )
+
+    @property
+    def database_url(self) -> str:
+        """Construct PostgreSQL URL from settings."""
+        user = self.db_user or self.postgres.user
+        password = self.db_password or self.postgres.password
+        return (
+            f"postgresql+asyncpg://{user}:{password}"
+            f"@{self.postgres.host}:{self.postgres.port}/{self.db_name}"
+        )
+
+    @cached_property
+    def postgres(self) -> PostgresSettings:
+        """Get shared PostgreSQL settings."""
+        return PostgresSettings()
 
     @cached_property
     def kafka(self) -> KafkaSettings:

@@ -38,6 +38,10 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
     SELECT 'CREATE DATABASE ${DELIVERY_SERVICE_DB_NAME}'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DELIVERY_SERVICE_DB_NAME}')\gexec
 
+    -- Delivery Service (tests)
+    SELECT 'CREATE DATABASE ${DELIVERY_SERVICE_TEST_DB_NAME:-delivery_service_test_db}'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DELIVERY_SERVICE_TEST_DB_NAME:-delivery_service_test_db}')\gexec
+
     -- Notification Service
     SELECT 'CREATE DATABASE ${NOTIFICATION_SERVICE_DB_NAME}'
     WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${NOTIFICATION_SERVICE_DB_NAME}')\gexec
@@ -120,6 +124,10 @@ create_role_and_grants \
   "${ORDER_SERVICE_TEST_DB_NAME:-order_service_test_db}" \
   "${ORDER_SERVICE_DB_USER:-}" \
   "${ORDER_SERVICE_DB_PASSWORD:-}"
+create_role_and_grants \
+  "${DELIVERY_SERVICE_TEST_DB_NAME:-delivery_service_test_db}" \
+  "${DELIVERY_SERVICE_DB_USER:-}" \
+  "${DELIVERY_SERVICE_DB_PASSWORD:-}"
 create_role_and_grants \
   "${REVIEW_SERVICE_TEST_DB_NAME:-review_service_test_db}" \
   "${REVIEW_SERVICE_DB_USER:-}" \

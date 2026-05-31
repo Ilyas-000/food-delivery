@@ -226,11 +226,11 @@ ifdef SERVICE
 			$(MAKE) wait-http URL=http://localhost:8004/health WAIT_HTTP_RETRIES=30; \
 			$(MAKE) wait-http URL=http://localhost:8005/health WAIT_HTTP_RETRIES=30; \
 			;; \
-		user-service|restaurant-service|review-service) \
+		user-service|restaurant-service|review-service|delivery-service) \
 			$(COMPOSE) up -d postgres redis; \
 			bash scripts/bootstrap-test-databases.sh; \
 			;; \
-		payment-service|delivery-service|notification-service) \
+		payment-service|notification-service) \
 			;; \
 		analytics-service) \
 			$(COMPOSE) up -d kafka clickhouse; \

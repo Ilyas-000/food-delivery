@@ -9,6 +9,13 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${POSTGRES_CONTAINER}$"; then
   exit 1
 fi
 
+for _ in $(seq 1 30); do
+  if docker exec "${POSTGRES_CONTAINER}" pg_isready -U "${POSTGRES_USER:-postgres}" -q; then
+    break
+  fi
+  sleep 1
+done
+
 docker exec "${POSTGRES_CONTAINER}" bash -lc '
 set -euo pipefail
 
@@ -63,5 +70,6 @@ bootstrap_service_db() {
 bootstrap_service_db "${USER_SERVICE_TEST_DB_NAME:-user_service_test_db}" "${USER_SERVICE_DB_USER:-}" "${USER_SERVICE_DB_PASSWORD:-}"
 bootstrap_service_db "${RESTAURANT_SERVICE_TEST_DB_NAME:-restaurant_service_test_db}" "${RESTAURANT_SERVICE_DB_USER:-}" "${RESTAURANT_SERVICE_DB_PASSWORD:-}"
 bootstrap_service_db "${ORDER_SERVICE_TEST_DB_NAME:-order_service_test_db}" "${ORDER_SERVICE_DB_USER:-}" "${ORDER_SERVICE_DB_PASSWORD:-}"
+bootstrap_service_db "${DELIVERY_SERVICE_TEST_DB_NAME:-delivery_service_test_db}" "${DELIVERY_SERVICE_DB_USER:-}" "${DELIVERY_SERVICE_DB_PASSWORD:-}"
 bootstrap_service_db "${REVIEW_SERVICE_TEST_DB_NAME:-review_service_test_db}" "${REVIEW_SERVICE_DB_USER:-}" "${REVIEW_SERVICE_DB_PASSWORD:-}"
 '

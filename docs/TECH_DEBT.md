@@ -102,16 +102,6 @@
 
 ## Delivery
 
-### Persistent delivery storage
-
-**Проблема:** Delivery Service использует in-memory assignment repository. После рестарта теряется состояние назначений и tracking lifecycle.
-
-**Что сделать:** добавить PostgreSQL-backed repository и миграции для assignment state.
-
-**Зона:** `services/delivery-service/src/infrastructure/repositories`, `services/delivery-service/src/domain/entities/assignment.py`
-
-**Приоритет:** High
-
 ### Courier domain
 
 **Проблема:** `courier_id` выбирается из mock-пула в Delivery Service. Для отзывов и analytics этого достаточно как контракт, но нет отдельного источника правды по курьерам, доступности и сменам.

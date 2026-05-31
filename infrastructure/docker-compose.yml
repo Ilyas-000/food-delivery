@@ -474,6 +474,8 @@ services:
     init: true
     restart: unless-stopped
     depends_on:
+      postgres:
+        condition: service_healthy
       kafka:
         condition: service_healthy
     ports:
@@ -485,6 +487,11 @@ services:
       DELIVERY_SERVICE_API_HOST: 0.0.0.0
       DELIVERY_SERVICE_API_PORT: 8005
       DELIVERY_SERVICE_API_PREFIX: /api/v1
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      DELIVERY_SERVICE_DB_NAME: ${DELIVERY_SERVICE_DB_NAME:-delivery_service_db}
+      DELIVERY_SERVICE_DB_USER: ${DELIVERY_SERVICE_DB_USER:-delivery_service_user}
+      DELIVERY_SERVICE_DB_PASSWORD: ${DELIVERY_SERVICE_DB_PASSWORD:-delivery_service_password_change_me}
       DELIVERY_SERVICE_KAFKA_ENABLED: ${DELIVERY_SERVICE_KAFKA_ENABLED:-true}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     volumes:
@@ -737,6 +744,7 @@ services:
       USER_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${USER_SERVICE_DB_USER:-user_service_user}:${USER_SERVICE_DB_PASSWORD:-user_service_password_change_me}@postgres:5432/${USER_SERVICE_TEST_DB_NAME:-user_service_test_db}
       RESTAURANT_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${RESTAURANT_SERVICE_DB_USER:-restaurant_service_user}:${RESTAURANT_SERVICE_DB_PASSWORD:-restaurant_service_password_change_me}@postgres:5432/${RESTAURANT_SERVICE_TEST_DB_NAME:-restaurant_service_test_db}
       ORDER_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${ORDER_SERVICE_DB_USER:-order_service_user}:${ORDER_SERVICE_DB_PASSWORD:-order_service_password_change_me}@postgres:5432/${ORDER_SERVICE_TEST_DB_NAME:-order_service_test_db}
+      DELIVERY_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${DELIVERY_SERVICE_DB_USER:-delivery_service_user}:${DELIVERY_SERVICE_DB_PASSWORD:-delivery_service_password_change_me}@postgres:5432/${DELIVERY_SERVICE_TEST_DB_NAME:-delivery_service_test_db}
       REVIEW_SERVICE_TEST_DATABASE_URL: postgresql+asyncpg://${REVIEW_SERVICE_DB_USER:-review_service_user}:${REVIEW_SERVICE_DB_PASSWORD:-review_service_password_change_me}@postgres:5432/${REVIEW_SERVICE_TEST_DB_NAME:-review_service_test_db}
       GATEWAY_USER_SERVICE_URL: http://user-service:8001
       GATEWAY_ORDER_SERVICE_URL: http://order-service:8003

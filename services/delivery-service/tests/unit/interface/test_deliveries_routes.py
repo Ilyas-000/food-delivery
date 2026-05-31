@@ -1,12 +1,31 @@
 """Unit tests for delivery routes."""
 
+from collections.abc import Iterator
 from uuid import uuid4
 
 from fastapi import status
 from fastapi.testclient import TestClient
 import pytest
 
+from src.application.interfaces.assignment_repository import IAssignmentRepository
+from src.infrastructure.repositories.in_memory_assignment_repository import (
+    InMemoryAssignmentRepository,
+)
+from src.interface.dependencies.database import get_assignment_repository
 from src.main import app
+
+
+@pytest.fixture(autouse=True)
+def _use_in_memory_repository() -> Iterator[None]:
+    """Route unit tests run against an in-memory repository, not PostgreSQL."""
+    repository = InMemoryAssignmentRepository()
+
+    async def override() -> IAssignmentRepository:
+        return repository
+
+    app.dependency_overrides[get_assignment_repository] = override
+    yield
+    app.dependency_overrides.pop(get_assignment_repository, None)
 
 
 def _assignment_payload(order_id: str | None = None) -> dict[str, str]:

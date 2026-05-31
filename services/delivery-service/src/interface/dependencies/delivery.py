@@ -14,15 +14,12 @@ from src.application.use_cases.get_assignment_by_order import GetAssignmentByOrd
 from src.application.use_cases.update_delivery_location import UpdateDeliveryLocationUseCase
 from src.config import settings
 from src.infrastructure.events.publisher import KafkaDeliveryEventPublisher
-from src.infrastructure.repositories.in_memory_assignment_repository import (
-    InMemoryAssignmentRepository,
-)
 from src.infrastructure.repositories.round_robin_courier_allocator import (
     RoundRobinCourierAllocator,
 )
+from src.interface.dependencies.database import get_assignment_repository
 from src.interface.realtime.order_tracking_broadcaster import OrderTrackingBroadcaster
 
-_REPOSITORY = InMemoryAssignmentRepository()
 _EVENT_PUBLISHER = KafkaDeliveryEventPublisher()
 _COURIER_ALLOCATOR = RoundRobinCourierAllocator(settings.courier_ids)
 _ORDER_TRACKING_BROADCASTER = OrderTrackingBroadcaster(
@@ -33,11 +30,6 @@ _ORDER_TRACKING_BROADCASTER = OrderTrackingBroadcaster(
     redis_password=settings.redis_password,
     redis_channel_prefix=settings.redis_channel_prefix,
 )
-
-
-async def get_assignment_repository() -> IAssignmentRepository:
-    """Provide assignment repository implementation."""
-    return _REPOSITORY
 
 
 async def get_delivery_event_publisher() -> IDeliveryEventPublisher:

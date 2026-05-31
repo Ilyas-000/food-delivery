@@ -6,10 +6,12 @@ from datetime import UTC, datetime
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from shared.observability.prometheus import ServiceMetrics, install_prometheus
 from shared.observability.request_context import install_request_context
 from src.config import settings
+from src.infrastructure.database import base
 from src.infrastructure.events.publisher import (
     init_event_publisher,
     is_event_publisher_ready,
@@ -24,11 +26,25 @@ from src.interface.dependencies.delivery import get_order_tracking_broadcaster_i
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Manage app startup/shutdown resources."""
+    base.AsyncSessionLocal = base.create_async_session_maker(settings.database_url)
     await init_event_publisher()
     yield
+    base.AsyncSessionLocal = None
     await shutdown_event_publisher()
     broadcaster = get_order_tracking_broadcaster_instance()
     await broadcaster.close()
+
+
+async def _check_database_dependency() -> str:
+    """Check database reachability."""
+    if base.AsyncSessionLocal is None:
+        return "not_initialized"
+    try:
+        async with base.AsyncSessionLocal() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception:  # pragma: no cover - defensive health path
+        return "unhealthy"
+    return "healthy"
 
 
 def create_app() -> FastAPI:
@@ -67,11 +83,14 @@ def create_app() -> FastAPI:
     @app.get("/health", tags=["health"])
     async def health_check() -> JSONResponse:
         """Health check endpoint."""
+        database_status = await _check_database_dependency()
         kafka_status = "disabled"
         if settings.kafka_enabled:
             kafka_status = "healthy" if is_event_publisher_ready() else "unhealthy"
 
         overall_status = "healthy"
+        if database_status != "healthy":
+            overall_status = "unhealthy"
         if settings.kafka_enabled and kafka_status != "healthy":
             overall_status = "unhealthy"
 
@@ -84,6 +103,7 @@ def create_app() -> FastAPI:
                 "timestamp": datetime.now(UTC).isoformat(),
                 "environment": settings.environment,
                 "dependencies": {
+                    "database": database_status,
                     "kafka": kafka_status,
                 },
             },

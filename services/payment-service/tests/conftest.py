@@ -4,6 +4,8 @@ import pytest
 
 from src.interface.dependencies.payment import reset_payment_repository
 
+pytest_plugins = ["shared.testing.pytest_summary"]
+
 
 def pytest_configure(config: pytest.Config) -> None:
     """Register markers used by this service."""

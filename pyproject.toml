@@ -144,6 +144,8 @@ ignore_missing_imports = true
 module = [
     "bcrypt",
     "email_validator",
+    "prometheus_client",
+    "prometheus_client.*",
     "structlog",
 ]
 ignore_missing_imports = true

@@ -9,6 +9,7 @@ authors = [
 ]
 
 dependencies = [
+    "food-delivery-shared",
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.25.0",
     "pydantic>=2.5.0",
@@ -29,6 +30,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[tool.uv.sources]
+food-delivery-shared = { workspace = true }
 
 [tool.ruff]
 extend = "../../pyproject.toml"

@@ -1,4 +1,4 @@
-.PHONY: help install dev-install setup-dev docker-ready up down restart logs health clean clean-image clean-images test test-all test-all-full test-unit test-integration test-e2e test-e2e-load test-cov test-deps-up test-e2e-deps-up test-service-prepare test-service test-service-full test-service-unit test-service-integration test-service-e2e test-user test-gateway test-restaurant test-order test-payment test-delivery test-notification test-analytics test-review test-user-unit test-gateway-unit test-restaurant-unit test-order-unit test-payment-unit test-delivery-unit test-notification-unit test-analytics-unit test-review-unit test-user-integration test-gateway-integration test-restaurant-integration test-order-integration test-payment-integration test-delivery-integration test-notification-integration test-analytics-integration test-review-integration test-user-e2e test-gateway-e2e test-restaurant-e2e test-order-e2e test-payment-e2e test-delivery-e2e test-notification-e2e test-analytics-e2e test-review-e2e lint format type-check pre-commit migrate seed dev-payment dev-delivery dev-notification dev-analytics dev-review
+.PHONY: help install dev-install setup-dev docker-ready up down restart logs health monitoring-up monitoring-down monitoring-logs clean clean-image clean-images test test-all test-all-full test-unit test-integration test-e2e test-e2e-load test-cov test-deps-up test-e2e-deps-up test-service-prepare test-service test-service-full test-service-unit test-service-integration test-service-e2e test-user test-gateway test-restaurant test-order test-payment test-delivery test-notification test-analytics test-review test-user-unit test-gateway-unit test-restaurant-unit test-order-unit test-payment-unit test-delivery-unit test-notification-unit test-analytics-unit test-review-unit test-user-integration test-gateway-integration test-restaurant-integration test-order-integration test-payment-integration test-delivery-integration test-notification-integration test-analytics-integration test-review-integration test-user-e2e test-gateway-e2e test-restaurant-e2e test-order-e2e test-payment-e2e test-delivery-e2e test-notification-e2e test-analytics-e2e test-review-e2e lint format type-check pre-commit migrate seed dev-payment dev-delivery dev-notification dev-analytics dev-review
 
 # Default target
 .DEFAULT_GOAL := help
@@ -12,6 +12,7 @@ RED := \033[0;31m
 NC := \033[0m # No Color
 DOCKER_COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; elif docker compose version >/dev/null 2>&1; then echo "docker compose"; else echo "docker-compose"; fi)
 COMPOSE := $(DOCKER_COMPOSE) --env-file .env -f infrastructure/docker-compose.yml
+COMPOSE_MONITORING := $(COMPOSE) --profile monitoring
 COMPOSE_TEST := $(COMPOSE) --profile test
 WAIT_HTTP_RETRIES ?= 45
 WAIT_HTTP_SLEEP_SECONDS ?= 1
@@ -70,6 +71,19 @@ endif
 health: ## Check health of all services
 	@echo "$(BLUE)Checking services health...$(NC)"
 	@bash scripts/check-health.sh
+
+monitoring-up: ## Start Prometheus and Grafana monitoring stack
+	@$(MAKE) docker-ready
+	@echo "$(BLUE)Starting monitoring stack...$(NC)"
+	$(COMPOSE_MONITORING) up -d alertmanager loki promtail prometheus grafana
+
+monitoring-down: ## Stop Prometheus and Grafana monitoring stack
+	@echo "$(YELLOW)Stopping monitoring stack...$(NC)"
+	$(COMPOSE_MONITORING) stop grafana prometheus promtail loki alertmanager
+
+monitoring-logs: ## Show logs from Prometheus and Grafana
+	@echo "$(BLUE)Showing monitoring logs...$(NC)"
+	$(COMPOSE_MONITORING) logs -f alertmanager loki promtail prometheus grafana
 
 clean: ## Remove all containers, volumes, and build artifacts
 	@echo "$(RED)Cleaning up...$(NC)"

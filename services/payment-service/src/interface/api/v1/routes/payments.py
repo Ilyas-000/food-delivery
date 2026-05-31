@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Response, status
+from fastapi import APIRouter, Depends, Header, Request, Response, status
 
 from src.application.dto.payment import ReservePaymentDTO
 from src.application.use_cases.confirm_payment import ConfirmPaymentUseCase
@@ -36,6 +36,7 @@ router = APIRouter(prefix="/payments", tags=["payments"])
     status_code=status.HTTP_201_CREATED,
 )
 async def reserve_payment(
+    http_request: Request,
     request: ReservePaymentRequest,
     use_case: Annotated[ReservePaymentUseCase, Depends(get_reserve_payment_use_case)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -53,6 +54,7 @@ async def reserve_payment(
         idempotency_key=cleaned_idempotency_key,
     )
     result = await use_case.execute(dto)
+    http_request.app.state.payment_reservations_total.labels(result="success").inc()
     return PaymentReservationResponse.from_dto(result)
 
 
@@ -104,11 +106,13 @@ async def get_payment(
     status_code=status.HTTP_200_OK,
 )
 async def confirm_payment(
+    request: Request,
     payment_id: UUID,
     use_case: Annotated[ConfirmPaymentUseCase, Depends(get_confirm_payment_use_case)],
 ) -> PaymentResponse:
     """Confirm reserved payment."""
     result = await use_case.execute(payment_id)
+    request.app.state.payment_confirmations_total.labels(result="success").inc()
     return PaymentResponse.from_dto(result)
 
 
@@ -118,9 +122,11 @@ async def confirm_payment(
     status_code=status.HTTP_200_OK,
 )
 async def refund_payment(
+    request: Request,
     payment_id: UUID,
     use_case: Annotated[RefundPaymentUseCase, Depends(get_refund_payment_use_case)],
 ) -> PaymentResponse:
     """Refund completed payment."""
     result = await use_case.execute(payment_id)
+    request.app.state.payment_refunds_total.labels(result="success").inc()
     return PaymentResponse.from_dto(result)

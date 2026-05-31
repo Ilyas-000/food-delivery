@@ -1,0 +1,59 @@
+groups:
+  - name: food-delivery-observability
+    rules:
+      - alert: FoodDeliveryServiceDown
+        expr: up{job=~"api-gateway|user-service|restaurant-service|order-service|payment-service|delivery-service|notification-service|analytics-service|review-service"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been unreachable for more than 2 minutes."
+
+      - alert: ApiGatewayHighErrorRate
+        expr: |
+          (
+            sum(rate(food_delivery_http_requests_total{service="api-gateway",status_code=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(food_delivery_http_requests_total{service="api-gateway"}[5m])), 0.001)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API Gateway 5xx error rate is high"
+          description: "Gateway 5xx ratio has been above 5% for 5 minutes."
+
+      - alert: ApiGatewayHighLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(food_delivery_http_request_duration_seconds_bucket{service="api-gateway"}[5m])
+            )
+          ) > 1.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API Gateway p95 latency is high"
+          description: "Gateway p95 latency has been above 1.5 seconds for 10 minutes."
+
+      - alert: ApiGatewayCircuitBreakerOpen
+        expr: food_delivery_gateway_circuit_breaker_state{state="open"} > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker is open for {{ $labels.downstream_service }}"
+          description: "Gateway circuit breaker for {{ $labels.downstream_service }} has stayed open for over 1 minute."
+
+      - alert: ApiGatewayRateLimitRejectionsSpike
+        expr: |
+          sum(rate(food_delivery_gateway_rate_limit_decisions_total{result="rejected"}[5m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gateway rate-limit rejections are spiking"
+          description: "Rejected rate-limit decisions exceeded 1 per second over the last 10 minutes."

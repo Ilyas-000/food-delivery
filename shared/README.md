@@ -12,6 +12,7 @@ shared/
 │   │   ├── kafka.py    # Kafka producer/consumer wrappers
 │   │   ├── redis.py    # Redis client wrapper
 │   │   └── jwt.py      # JWT token utilities
+│   ├── observability/  # Shared Prometheus instrumentation helpers
 │   └── exceptions/     # Base exceptions
 └── tests/              # Unit tests
 ```
@@ -24,6 +25,8 @@ This library contains:
 - Infrastructure clients (Kafka, Redis)
 - Event contracts (cross-service communication)
 - JWT utilities (authentication)
+- Observability helpers (Prometheus HTTP instrumentation)
+- Request context helpers (request/correlation ids + request-level logging)
 
 This library does NOT contain:
 - ORM base classes (each service manages own DB)

@@ -50,6 +50,13 @@ When code changes, keep this file in sync.
 - Log at API boundaries (request-level) and key business events only.
 - Prefer structured fields (service, request_id, user_id) over free-form text.
 
+## Monitoring & Metrics
+
+- Expose Prometheus metrics on `/metrics`.
+- Reuse shared HTTP instrumentation from `shared` instead of duplicating middleware per service.
+- Service-specific operational metrics (for example gateway resilience/rate-limit metrics) should stay close to the owning service/module.
+- Preserve and forward `X-Request-ID` and `X-Correlation-ID` across service boundaries for request correlation tracing.
+
 ## Kafka & Events
 
 - Topic naming: `{service}.{entity}.{action}`.

@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from src.application.dto.delivery import AssignCourierDTO, UpdateDeliveryLocationDTO
 from src.application.use_cases.assign_courier import AssignCourierUseCase
@@ -36,6 +36,7 @@ router = APIRouter(prefix="/deliveries", tags=["deliveries"])
     status_code=status.HTTP_201_CREATED,
 )
 async def assign_courier(
+    http_request: Request,
     request: AssignCourierRequest,
     use_case: Annotated[AssignCourierUseCase, Depends(get_assign_courier_use_case)],
 ) -> DeliveryAssignmentResponse:
@@ -46,6 +47,7 @@ async def assign_courier(
         courier_id=request.courier_id,
     )
     result = await use_case.execute(dto)
+    http_request.app.state.delivery_assignments_total.labels(result="success").inc()
     return DeliveryAssignmentResponse.from_dto(result)
 
 
@@ -85,6 +87,7 @@ async def get_assignment_by_order(
     status_code=status.HTTP_200_OK,
 )
 async def update_location(
+    http_request: Request,
     request: UpdateDeliveryLocationRequest,
     use_case: Annotated[
         UpdateDeliveryLocationUseCase,
@@ -125,6 +128,7 @@ async def update_location(
             },
         },
     )
+    http_request.app.state.delivery_location_updates_total.labels(result="success").inc()
     return DeliveryAssignmentResponse.from_dto(result)
 
 
@@ -134,6 +138,7 @@ async def update_location(
     status_code=status.HTTP_200_OK,
 )
 async def complete_delivery(
+    request: Request,
     order_id: UUID,
     use_case: Annotated[CompleteDeliveryUseCase, Depends(get_complete_delivery_use_case)],
     broadcaster: Annotated[OrderTrackingBroadcaster, Depends(get_order_tracking_broadcaster)],
@@ -164,4 +169,5 @@ async def complete_delivery(
             },
         },
     )
+    request.app.state.deliveries_completed_total.labels(result="success").inc()
     return DeliveryAssignmentResponse.from_dto(result)

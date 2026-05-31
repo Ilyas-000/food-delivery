@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
 from src.application.dto.notification import SendEmailDTO, SendPushDTO
 from src.application.use_cases.get_notification import GetNotificationUseCase
@@ -28,6 +28,7 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 @router.post("/email", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED)
 async def send_email_notification(
+    request_context: Request,
     request: SendEmailRequest,
     use_case: Annotated[SendEmailUseCase, Depends(get_send_email_use_case)],
 ) -> NotificationResponse:
@@ -42,11 +43,16 @@ async def send_email_notification(
             user_id=request.user_id,
         )
     )
+    request_context.app.state.notifications_sent_total.labels(
+        channel="email",
+        result="success",
+    ).inc()
     return NotificationResponse.from_dto(result)
 
 
 @router.post("/push", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED)
 async def send_push_notification(
+    request_context: Request,
     request: SendPushRequest,
     use_case: Annotated[SendPushUseCase, Depends(get_send_push_use_case)],
 ) -> NotificationResponse:
@@ -61,6 +67,10 @@ async def send_push_notification(
             user_id=request.user_id,
         )
     )
+    request_context.app.state.notifications_sent_total.labels(
+        channel="push",
+        result="success",
+    ).inc()
     return NotificationResponse.from_dto(result)
 
 

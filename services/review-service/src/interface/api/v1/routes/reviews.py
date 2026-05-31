@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 import structlog
 
 from src.application.dto.review import CreateReviewDTO, ListReviewsDTO, UpdateReviewDTO
@@ -41,6 +41,7 @@ router = APIRouter(prefix="/reviews", tags=["reviews"])
 
 @router.post("", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
 async def create_review(
+    http_request: Request,
     request: CreateReviewRequest,
     current_user_id: Annotated[UUID, Depends(get_current_user_id)],
     use_case: Annotated[CreateReviewUseCase, Depends(get_create_review_use_case)],
@@ -67,6 +68,10 @@ async def create_review(
             "rating": result.rating,
         },
     )
+    http_request.app.state.reviews_created_total.labels(
+        target_type=result.target_type.value,
+        result="success",
+    ).inc()
     logger.info("reviews.create.success", review_id=str(result.id), order_id=str(result.order_id))
     return ReviewResponse.from_dto(result)
 

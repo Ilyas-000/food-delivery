@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"  # nosec B104
     api_port: int = 8008
     api_prefix: str = "/api/v1"
+    metrics_enabled: bool = True
+    metrics_path: str = "/metrics"
 
     db_name: str = "review_service_db"
     db_user: str | None = None

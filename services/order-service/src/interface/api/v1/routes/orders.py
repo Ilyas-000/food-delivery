@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
 from src.application.dto.order import CreateOrderDTO, CreateOrderItemDTO
 from src.application.use_cases.create_order import CreateOrderUseCase
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 
 @router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_order(
+    http_request: Request,
     request: CreateOrderRequest,
     use_case: Annotated[CreateOrderUseCase, Depends(get_create_order_use_case)],
 ) -> OrderResponse:
@@ -35,6 +36,7 @@ async def create_order(
     )
 
     result = await use_case.execute(dto)
+    http_request.app.state.order_created_total.labels(result="success").inc()
     return OrderResponse.from_dto(result)
 
 

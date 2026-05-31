@@ -57,6 +57,8 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"  # nosec B104
     api_port: int = 8002
     api_prefix: str = "/api/v1"
+    metrics_enabled: bool = True
+    metrics_path: str = "/metrics"
 
     # Database
     db_name: str = "restaurant_service_db"  # Uses prefix: RESTAURANT_SERVICE_DB_NAME

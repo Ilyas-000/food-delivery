@@ -71,6 +71,8 @@ async def proxy_to_service(
     # Add request ID for tracing
     if hasattr(request.state, "request_id"):
         headers["X-Request-ID"] = request.state.request_id
+    if hasattr(request.state, "correlation_id"):
+        headers["X-Correlation-ID"] = request.state.correlation_id
     if user is not None:
         headers["X-User-ID"] = user.user_id
         headers["X-User-Role"] = user.role

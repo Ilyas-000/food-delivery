@@ -14,11 +14,14 @@ class Settings(BaseSettings):
     )
 
     # Server
+    service_name: str = "api-gateway"
     host: str = "0.0.0.0"  # nosec B104
     port: int = 8000
     environment: str = "development"
     debug: bool = True
     version: str = "1.0.0"
+    metrics_enabled: bool = True
+    metrics_path: str = "/metrics"
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]

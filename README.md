@@ -36,6 +36,7 @@ Infra:
 - PostgreSQL (service databases)
 - Redis (rate limiting + token storage + Pub/Sub for WS fanout)
 - Kafka + Kafka UI (event bus)
+- Prometheus + Alertmanager + Grafana + Loki/Promtail (monitoring profile)
 ```
 
 Ключевые принципы:
@@ -71,6 +72,7 @@ Infra:
 
 - Python 3.12, FastAPI, Pydantic, SQLAlchemy
 - PostgreSQL, Redis, Kafka
+- Prometheus, Alertmanager, Grafana, Loki
 - Docker / Docker Compose
 - `uv` workspace
 - pytest + pytest-asyncio
@@ -100,6 +102,9 @@ make migrate
 ```bash
 make down
 make logs
+make monitoring-up
+make monitoring-down
+make monitoring-logs
 make clean
 make kafka-topics
 
@@ -171,3 +176,11 @@ food-delivery/
 - `docs/ENGINEERING_CONVENTIONS.md` — инженерные соглашения
 - `docs/TECH_DEBT.md` — технический долг
 - `docs/adr/` — архитектурные решения (ADR)
+
+## Monitoring
+
+- `make monitoring-up` поднимает Alertmanager (`http://localhost:9094`), Loki (`http://localhost:3100`), Prometheus (`http://localhost:9090`) и Grafana (`http://localhost:3001`)
+- Prometheus скрейпит `/metrics` у gateway и всех сервисов, а alert rules загружены из `infrastructure/docker/prometheus/alerts/`
+- Promtail собирает stdout/stderr контейнеров в Loki
+- Grafana автоматически получает datasource для Prometheus и Loki, а также готовый dashboard `Phase 10 Observability`
+- request correlation tracing использует `X-Request-ID` и `X-Correlation-ID` через gateway и downstream сервисы

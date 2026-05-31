@@ -12,6 +12,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 import structlog
 
+from shared.observability.prometheus import ServiceMetrics, install_prometheus
+from shared.observability.request_context import install_request_context
 from src.config import settings
 from src.infrastructure.database import base
 from src.infrastructure.events.publisher import (
@@ -76,6 +78,12 @@ def create_app() -> FastAPI:
         debug=settings.debug,
         lifespan=lifespan,
     )
+    metrics = ServiceMetrics(settings.service_name)
+    app.state.reviews_created_total = metrics.create_counter(
+        "food_delivery_reviews_created_total",
+        "Number of successfully created reviews.",
+        labelnames=("target_type", "result"),
+    )
 
     app.add_middleware(
         CORSMiddleware,
@@ -84,6 +92,9 @@ def create_app() -> FastAPI:
         allow_methods=settings.cors_allow_methods,
         allow_headers=settings.cors_allow_headers,
     )
+    if settings.metrics_enabled:
+        install_prometheus(app, metrics, metrics_path=settings.metrics_path)
+    install_request_context(app, service_name=settings.service_name)
 
     register_exception_handlers(app)
     app.include_router(reviews.router, prefix=settings.api_prefix)

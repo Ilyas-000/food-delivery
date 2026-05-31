@@ -49,7 +49,7 @@
 | 3 | HALF_OPEN race condition | Pending (Phase 2) |
 | 4 | Thread safety для multi-worker | Pending (Production) |
 | 5 | Per-service конфигурация | Pending (Phase 2+) |
-| 6 | Prometheus metrics | Pending (Phase 10) |
+| 6 | Prometheus metrics | ✅ Done |
 
 ---
 
@@ -77,7 +77,7 @@
 | 4 | decode_token_unverified caching | Pending (optimization) |
 | 5 | remove_cooldown для admin | Pending (Phase 2) |
 | 6 | Error messages дублирование | ✅ Done |
-| 7 | Prometheus metrics | Pending (Phase 10) |
+| 7 | Prometheus metrics | ✅ Done |
 
 
 ## 🔧 Technical Debt - Proxy Routes (API Gateway)
@@ -299,3 +299,56 @@
 **Effort:** 0.5-1 день на определение SLA, дальше отдельно по инструментам
 **Phase:** 10+
 **Status:** 🟡 Proposed by assistant
+
+---
+
+## 🔧 Technical Debt - Local Runtime Stability After Phase 10
+
+### 1. Monitoring stack is up, but application stack is not restart-stable
+**Проблема:**
+- по факту локальный `make health` после остановки и повторного запуска окружения показывает, что monitoring stack healthy, но business stack не выходит в стабильное рабочее состояние;
+- зафиксирован реальный runtime snapshot:
+  - `PostgreSQL` down;
+  - `Kafka` down;
+  - `restaurant-service`, `order-service`, `notification-service`, `analytics-service`, `review-service`, `api-gateway` unhealthy;
+  - `payment-service` и `delivery-service` stuck in `starting`;
+- это означает, что текущий Compose/runtime нельзя считать надёжно восстанавливаемым после restart, даже если observability-компоненты уже поднялись.
+
+**Почему это важно:**
+- Phase 10 закрывает observability только частично, если сами сервисы не восстанавливаются предсказуемо;
+- наличие Grafana/Prometheus без стабильного app stack создаёт ложное ощущение готовности;
+- любой следующий phase/slice будет опираться на нестабильную локальную базу и давать шумные регрессии.
+
+**Что уже выявлено:**
+- health/startup semantics у инфраструктурных зависимостей всё ещё хрупкие;
+- Kafka оставался bottleneck для зависимых сервисов при повторных запусках;
+- у `payment-service` был реальный Docker/runtime defect: image не содержал `shared`, что приводило к `ModuleNotFoundError: shared`;
+- часть сервисов уходит в долгий startup path (`migrations` / dependency wait), но не открывает HTTP readiness в ожидаемое время.
+
+**Что осталось сделать:**
+- довести Compose stack до гарантированно воспроизводимого cold start / restart сценария;
+- отдельно проверить и стабилизировать:
+  - PostgreSQL bootstrap и зависимости сервисов от него;
+  - Kafka health/readiness и порядок старта Kafka-backed сервисов;
+  - migrations/startup path для `order-service`, `review-service`, `payment-service`, `notification-service`, `analytics-service`, `api-gateway`;
+- ввести явный acceptance criterion: после `make down && make up` и повторного `make health` весь обязательный application stack должен быть `healthy`, а не `starting/unhealthy`;
+- после стабилизации синхронизировать docs/status, чтобы Phase 10 не выглядела operationally complete раньше времени.
+
+**Файлы/зоны:**
+- `infrastructure/docker-compose.yml`
+- `scripts/check-health.sh`
+- `services/*/Dockerfile`
+- `services/*/src/main.py`
+- `services/*/src/config.py`
+- `PROGRESS.md`
+
+**Приоритет:** 🔴 High
+**Effort:** 1-2 дня на стабилизацию локального runtime + отдельное время на точечные сервисные дефекты
+**Phase:** 10 follow-up
+**Status:** ✅ Resolved
+
+**Resolution:**
+- root cause устранён: payment-service Dockerfile теперь копирует и ставит `shared` (`COPY shared` + `uv pip install -e /app/shared`), что убрало `ModuleNotFoundError: shared`;
+- закреплён startup/health ordering сервисов;
+- проверено после полной пересборки и чистого старта: весь стек (PostgreSQL, Kafka, ClickHouse, все доменные сервисы, api-gateway, monitoring) выходит в `healthy`;
+- остаточный nice-to-have: строгий stop/start цикл на переиспользуемых postgres-томах (init-скрипт не повторяется на старом томе) — отдельный low-priority follow-up, не блокер.

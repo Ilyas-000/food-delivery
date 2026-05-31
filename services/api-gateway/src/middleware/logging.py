@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 
 import structlog
 from fastapi import Request, Response
+from shared.observability.request_context import CORRELATION_ID_HEADER, REQUEST_ID_HEADER
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.config import settings
@@ -23,11 +24,16 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         """Process request and log."""
         logger = structlog.get_logger()
 
-        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        request_id = getattr(request.state, "request_id", None)
+        if request_id is None:
+            request_id = request.headers.get(REQUEST_ID_HEADER, str(uuid.uuid4()))
         request.state.request_id = request_id
+        correlation_id = getattr(request.state, "correlation_id", request_id)
+        request.state.correlation_id = correlation_id
 
         log_context = {
             "request_id": request_id,
+            "correlation_id": correlation_id,
             "method": request.method,
             "path": request.url.path,
             "client_ip": get_client_ip(request),
@@ -47,7 +53,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 duration_ms=duration_ms,
             )
 
-            response.headers["X-Request-ID"] = request_id
+            response.headers[REQUEST_ID_HEADER] = request_id
+            response.headers[CORRELATION_ID_HEADER] = correlation_id
             return response
 
         except Exception as exc:

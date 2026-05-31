@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from shared.observability.prometheus import ServiceMetrics, install_prometheus
+from shared.observability.request_context import install_request_context
 from src.config import settings
 from src.interface.api.exception_handlers import register_exception_handlers
 from src.interface.api.v1.routes import analytics
@@ -41,8 +43,12 @@ def create_app() -> FastAPI:
         debug=settings.debug,
         lifespan=lifespan,
     )
+    metrics = ServiceMetrics(settings.service_name)
 
     register_exception_handlers(app)
+    if settings.metrics_enabled:
+        install_prometheus(app, metrics, metrics_path=settings.metrics_path)
+    install_request_context(app, service_name=settings.service_name)
     app.include_router(analytics.router, prefix=settings.api_prefix)
 
     @app.get("/health", tags=["health"])

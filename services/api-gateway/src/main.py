@@ -10,12 +10,15 @@ import structlog
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from shared.observability.prometheus import install_prometheus
+from shared.observability.request_context import install_request_context
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.config import settings
 from src.dependencies.redis_client import close_redis, init_redis
 from src.middleware.circuit_breaker import CircuitBreakerMiddleware
 from src.middleware.logging import RequestLoggingMiddleware
+from src.observability import GatewayMetrics
 from src.routes import health, proxy
 
 
@@ -25,6 +28,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Startup
     structlog.configure(
         processors=[
+            structlog.contextvars.merge_contextvars,
             structlog.stdlib.filter_by_level,
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,
@@ -105,6 +109,8 @@ def create_app() -> FastAPI:
         docs_url="/docs" if settings.debug else None,
         redoc_url="/redoc" if settings.debug else None,
     )
+    gateway_metrics = GatewayMetrics(settings.service_name)
+    app.state.gateway_metrics = gateway_metrics
 
     # Exception handlers
     app.add_exception_handler(Exception, global_exception_handler)
@@ -124,6 +130,18 @@ def create_app() -> FastAPI:
         CircuitBreakerMiddleware,
         failure_threshold=settings.circuit_breaker_failure_threshold,
         recovery_timeout=settings.circuit_breaker_recovery_timeout,
+        gateway_metrics=gateway_metrics,
+    )
+    if settings.metrics_enabled:
+        install_prometheus(
+            app,
+            gateway_metrics,
+            metrics_path=settings.metrics_path,
+        )
+    install_request_context(
+        app,
+        service_name=settings.service_name,
+        log_requests=False,
     )
     if settings.trust_proxy_headers:
         trusted_hosts = settings.trusted_proxy_ips or "*"

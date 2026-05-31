@@ -110,16 +110,6 @@
 
 **Приоритет:** Medium
 
-### Restaurant event naming
-
-**Проблема:** общая конвенция topic/event naming — `{service}.{aggregate}.{action}`, но Restaurant Service сейчас публикует `restaurant.*` event types без `restaurant-service` prefix. Topic bootstrap содержит service-prefixed restaurant topics, поэтому контракты нужно синхронизировать перед подключением downstream consumers.
-
-**Что сделать:** выбрать финальные topic names, обновить publisher/routes, shared event contracts и provisioning script.
-
-**Зона:** `services/restaurant-service/src/interface/api/v1/routes/restaurants.py`, `infrastructure/kafka/create-topics.sh`, `shared/src/shared/events`
-
-**Приоритет:** Medium
-
 ### Consumer readiness
 
 **Проблема:** сервис может отвечать на `/health`, но Kafka consumer ещё находится в retry startup loop. Это корректно для liveness, но не отражает готовность ingest/notification функций.

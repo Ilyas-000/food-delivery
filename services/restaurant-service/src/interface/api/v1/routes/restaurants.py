@@ -90,7 +90,7 @@ async def create_restaurant(
     )
     result_dto = await use_case.execute(dto)
     await publish_event(
-        event_type="restaurant.restaurant.created",
+        event_type="restaurant-service.restaurant.created",
         aggregate_type="restaurant",
         aggregate_id=str(result_dto.id),
         user_id=str(result_dto.owner_id),
@@ -156,7 +156,7 @@ async def update_restaurant(
     )
     result_dto = await use_case.execute(restaurant_id, dto)
     await publish_event(
-        event_type="restaurant.restaurant.updated",
+        event_type="restaurant-service.restaurant.updated",
         aggregate_type="restaurant",
         aggregate_id=str(result_dto.id),
         user_id=str(result_dto.owner_id),
@@ -189,7 +189,7 @@ async def deactivate_restaurant(
 
     await use_case.execute(restaurant_id)
     await publish_event(
-        event_type="restaurant.restaurant.deactivated",
+        event_type="restaurant-service.restaurant.deactivated",
         aggregate_type="restaurant",
         aggregate_id=str(restaurant_id),
         payload={},
@@ -306,7 +306,7 @@ async def create_restaurant_menu_item(
     )
     result_dto = await use_case.execute(dto)
     await publish_event(
-        event_type="restaurant.menu_item.created",
+        event_type="restaurant-service.menu_item.created",
         aggregate_type="menu_item",
         aggregate_id=str(result_dto.id),
         payload={
@@ -353,7 +353,7 @@ async def update_restaurant_menu_item(
         restaurant_id=restaurant_id,
     )
     await publish_event(
-        event_type="restaurant.menu_item.updated",
+        event_type="restaurant-service.menu_item.updated",
         aggregate_type="menu_item",
         aggregate_id=str(result_dto.id),
         payload={
@@ -394,7 +394,7 @@ async def update_restaurant_menu_item_availability(
     dto = UpdateMenuItemAvailabilityDTO(availability=request.availability)
     result_dto = await use_case.execute(restaurant_id, menu_item_id, dto)
     await publish_event(
-        event_type="restaurant.menu_item.availability_changed",
+        event_type="restaurant-service.menu_item.availability_changed",
         aggregate_type="menu_item",
         aggregate_id=str(result_dto.id),
         payload={
@@ -430,7 +430,7 @@ async def delete_restaurant_menu_item(
 
     await use_case.execute(restaurant_id, menu_item_id)
     await publish_event(
-        event_type="restaurant.menu_item.deleted",
+        event_type="restaurant-service.menu_item.deleted",
         aggregate_type="menu_item",
         aggregate_id=str(menu_item_id),
         payload={"restaurant_id": str(restaurant_id)},

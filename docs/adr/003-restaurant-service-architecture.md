@@ -59,14 +59,15 @@ PATCH  /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}/availabilit
 DELETE /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}
 ```
 
-Restaurant Service can publish the current event types:
-- `restaurant.restaurant.created`;
-- `restaurant.restaurant.updated`;
-- `restaurant.restaurant.deactivated`;
-- `restaurant.menu_item.created`;
-- `restaurant.menu_item.updated`;
-- `restaurant.menu_item.availability_changed`;
-- `restaurant.menu_item.deleted`.
+Restaurant Service can publish the current event types, following the shared
+`{service}.{aggregate}.{action}` topic convention:
+- `restaurant-service.restaurant.created`;
+- `restaurant-service.restaurant.updated`;
+- `restaurant-service.restaurant.deactivated`;
+- `restaurant-service.menu_item.created`;
+- `restaurant-service.menu_item.updated`;
+- `restaurant-service.menu_item.availability_changed`;
+- `restaurant-service.menu_item.deleted`.
 
 ## Consequences
 
@@ -82,7 +83,6 @@ Restaurant Service can publish the current event types:
 - Menu and restaurant reads are served from the write database; there is no dedicated catalog read model.
 - Search is filter-based, not full-text ranking.
 - Kafka publication is best-effort until an outbox is implemented.
-- Restaurant event names still need normalization to the shared service-prefixed topic convention.
 
 ### Risks
 

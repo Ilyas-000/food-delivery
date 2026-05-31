@@ -39,13 +39,13 @@
 ## События Kafka
 
 При включённой публикации сервис отправляет текущие `event_type`:
-- `restaurant.restaurant.created`
-- `restaurant.restaurant.updated`
-- `restaurant.restaurant.deactivated`
-- `restaurant.menu_item.created`
-- `restaurant.menu_item.updated`
-- `restaurant.menu_item.availability_changed`
-- `restaurant.menu_item.deleted`
+- `restaurant-service.restaurant.created`
+- `restaurant-service.restaurant.updated`
+- `restaurant-service.restaurant.deactivated`
+- `restaurant-service.menu_item.created`
+- `restaurant-service.menu_item.updated`
+- `restaurant-service.menu_item.availability_changed`
+- `restaurant-service.menu_item.deleted`
 
 ## Хранилище
 

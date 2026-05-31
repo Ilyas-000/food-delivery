@@ -43,7 +43,12 @@ TOPICS=(
 
   # Restaurant Service Events
   "restaurant-service.restaurant.created:3:604800000"
-  "restaurant-service.restaurant.menu_updated:3:604800000"
+  "restaurant-service.restaurant.updated:3:604800000"
+  "restaurant-service.restaurant.deactivated:3:604800000"
+  "restaurant-service.menu_item.created:3:604800000"
+  "restaurant-service.menu_item.updated:3:604800000"
+  "restaurant-service.menu_item.availability_changed:3:604800000"
+  "restaurant-service.menu_item.deleted:3:604800000"
 
   # Notification Service Events
   "notification-service.notification.email_sent:3:86400000"

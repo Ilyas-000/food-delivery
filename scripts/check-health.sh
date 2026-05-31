@@ -68,6 +68,11 @@ check_container_health() {
 check_container_health "food-delivery-zookeeper" "Zookeeper"
 check_container_health "food-delivery-kafka-ui" "Kafka UI"
 check_container_health "food-delivery-pgadmin" "PgAdmin"
+check_container_health "food-delivery-prometheus" "Prometheus"
+check_container_health "food-delivery-grafana" "Grafana"
+check_container_health "food-delivery-loki" "Loki"
+check_container_health "food-delivery-promtail" "Promtail"
+check_container_health "food-delivery-alertmanager" "Alertmanager"
 
 # Check User Service and API Gateway (if running)
 check_container_health "food-delivery-user-service" "User Service"

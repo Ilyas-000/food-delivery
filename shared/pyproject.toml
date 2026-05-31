@@ -11,6 +11,7 @@ dependencies = [
     # Core
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
+    "prometheus-client>=0.21.1",
 
     # Async HTTP & File I/O
     "httpx>=0.25.2",
@@ -28,6 +29,7 @@ dependencies = [
     # Utilities
     "python-dateutil>=2.8.2",
     "pytz>=2023.3",
+    "structlog>=24.1.0",
 ]
 
 [project.optional-dependencies]

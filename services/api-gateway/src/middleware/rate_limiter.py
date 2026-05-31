@@ -8,6 +8,7 @@ from shared.common.jwt import decode_token_unverified
 from shared.common.redis import RedisClient
 
 from src.config import settings
+from src.observability import GatewayMetrics
 from src.utils.ip import get_client_ip
 
 logger = structlog.get_logger()
@@ -25,6 +26,10 @@ class RateLimiter:
 
     def __init__(self, redis: RedisClient) -> None:
         self.redis = redis
+
+    @staticmethod
+    def _get_metrics(request: Request) -> GatewayMetrics | None:
+        return getattr(request.app.state, "gateway_metrics", None)
 
     async def _check_limit(
         self,
@@ -53,14 +58,19 @@ class RateLimiter:
 
     async def _check_and_raise(
         self,
+        request: Request,
         key: str,
         limit: int,
         window: int,
         message: str,
+        scope: str,
         burst: int | None = None,
     ) -> None:
         """Check limit and raise HTTPException if exceeded."""
         allowed, _ = await self._check_limit(key, limit, window, burst)
+        metrics = self._get_metrics(request)
+        if metrics is not None:
+            metrics.record_rate_limit_decision(scope, "allowed" if allowed else "rejected")
         if not allowed:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -110,6 +120,9 @@ class RateLimiter:
         # Check cooldown
         in_cooldown, remaining = await self._is_in_cooldown(f"login:ip:{client_ip}")
         if in_cooldown:
+            metrics = self._get_metrics(request)
+            if metrics is not None:
+                metrics.record_rate_limit_decision("login_cooldown", "rejected")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail={
@@ -123,37 +136,47 @@ class RateLimiter:
 
         # Per-IP limits
         await self._check_and_raise(
+            request,
             f"login:ip:{client_ip}:min",
             settings.login_per_ip_minute,
             60,
             "Too many login attempts from this IP.",
+            scope="login_ip_minute",
         )
         await self._check_and_raise(
+            request,
             f"login:ip:{client_ip}:hour",
             settings.login_per_ip_hour,
             3600,
             "Too many login attempts from this IP.",
+            scope="login_ip_hour",
         )
 
         # Per-account limits
         if normalized_email:
             await self._check_and_raise(
+                request,
                 f"login:account:{normalized_email}:min",
                 settings.login_per_account_minute,
                 60,
                 "Too many login attempts for this account.",
+                scope="login_account_minute",
             )
             await self._check_and_raise(
+                request,
                 f"login:account:{normalized_email}:hour",
                 settings.login_per_account_hour,
                 3600,
                 "Too many login attempts for this account.",
+                scope="login_account_hour",
             )
             await self._check_and_raise(
+                request,
                 f"login:ip_account:{client_ip}:{normalized_email}:min",
                 settings.login_per_ip_account_minute,
                 60,
                 "Too many login attempts.",
+                scope="login_ip_account_minute",
             )
 
     async def record_login_failure(self, request: Request, email: str | None = None) -> None:
@@ -169,6 +192,9 @@ class RateLimiter:
 
         if failure_count >= settings.login_max_fails_count:
             await self._set_cooldown(f"login:ip:{client_ip}", settings.login_cooldown_duration)
+            metrics = self._get_metrics(request)
+            if metrics is not None:
+                metrics.record_rate_limit_cooldown("login_ip")
 
     async def check_refresh_rate_limit(
         self,
@@ -189,39 +215,49 @@ class RateLimiter:
         # Per-JTI limits
         if jti:
             await self._check_and_raise(
+                request,
                 f"refresh:jti:{jti}:min",
                 settings.refresh_per_jti_minute,
                 60,
                 "Too many refresh attempts with this token.",
+                scope="refresh_jti_minute",
             )
             await self._check_and_raise(
+                request,
                 f"refresh:jti:{jti}:hour",
                 settings.refresh_per_jti_hour,
                 3600,
                 "Too many refresh attempts.",
+                scope="refresh_jti_hour",
             )
 
         # Per-user limits
         if user_id:
             await self._check_and_raise(
+                request,
                 f"refresh:user:{user_id}:min",
                 settings.refresh_per_user_minute,
                 60,
                 "Too many refresh attempts.",
+                scope="refresh_user_minute",
             )
 
         # Per-IP limits
         await self._check_and_raise(
+            request,
             f"refresh:ip:{client_ip}:min",
             settings.refresh_per_ip_minute,
             60,
             "Too many refresh attempts from this IP.",
+            scope="refresh_ip_minute",
         )
         await self._check_and_raise(
+            request,
             f"refresh:ip:{client_ip}:hour",
             settings.refresh_per_ip_hour,
             3600,
             "Too many refresh attempts from this IP.",
+            scope="refresh_ip_hour",
         )
 
     async def check_auth_global_rate_limit(self, request: Request) -> None:
@@ -229,15 +265,19 @@ class RateLimiter:
         client_ip = get_client_ip(request)
 
         await self._check_and_raise(
+            request,
             f"auth:global:ip:{client_ip}:min",
             settings.auth_global_per_ip_minute,
             60,
             "Too many requests to authentication endpoints.",
+            scope="auth_global_minute",
             burst=settings.auth_global_burst,
         )
         await self._check_and_raise(
+            request,
             f"auth:global:ip:{client_ip}:hour",
             settings.auth_global_per_ip_hour,
             3600,
             "Too many requests to authentication endpoints.",
+            scope="auth_global_hour",
         )

@@ -17,6 +17,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 import structlog
 
+from shared.observability.prometheus import ServiceMetrics, install_prometheus
+from shared.observability.request_context import install_request_context
 from src.config import settings
 from src.infrastructure.cache.redis_client import close_redis_client, create_redis_client
 from src.infrastructure.database import base
@@ -146,6 +148,7 @@ def create_app() -> FastAPI:
         debug=settings.debug,
         lifespan=lifespan,
     )
+    metrics = ServiceMetrics(settings.service_name)
 
     # === MIDDLEWARE ===
 
@@ -158,6 +161,9 @@ def create_app() -> FastAPI:
         allow_methods=settings.cors_allow_methods,
         allow_headers=settings.cors_allow_headers,
     )
+    if settings.metrics_enabled:
+        install_prometheus(app, metrics, metrics_path=settings.metrics_path)
+    install_request_context(app, service_name=settings.service_name)
 
     # TODO: Request ID middleware (для distributed tracing)
     # TODO: Logging middleware (логирование всех requests)

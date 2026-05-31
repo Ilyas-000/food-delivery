@@ -18,6 +18,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
 
+from src.observability import GatewayMetrics
+
 
 class CircuitState(Enum):
     """Circuit breaker states."""
@@ -33,6 +35,7 @@ class CircuitBreaker:
     def __init__(
         self,
         service_name: str,
+        gateway_metrics: GatewayMetrics,
         failure_threshold: int = 5,
         recovery_timeout: float = 30.0,
     ) -> None:
@@ -46,11 +49,23 @@ class CircuitBreaker:
         self.service_name = service_name
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
+        self.gateway_metrics = gateway_metrics
 
         self.state = CircuitState.CLOSED
         self.failure_count = 0
         self.last_failure_time: float | None = None
         self.logger = structlog.get_logger()
+        self.gateway_metrics.set_circuit_breaker_state(self.service_name, self.state.value)
+
+    def _transition_to(self, state: CircuitState) -> None:
+        """Transition circuit breaker state and publish metrics."""
+        if self.state == state:
+            return
+        self.state = state
+        self.gateway_metrics.record_circuit_breaker_state_change(
+            self.service_name,
+            state.value,
+        )
 
     def is_open(self) -> bool:
         """Check if circuit is open (blocking requests)."""
@@ -67,7 +82,7 @@ class CircuitBreaker:
                     "Circuit breaker entering HALF_OPEN",
                     service=self.service_name,
                 )
-                self.state = CircuitState.HALF_OPEN
+                self._transition_to(CircuitState.HALF_OPEN)
                 return False
             return True
 
@@ -84,7 +99,7 @@ class CircuitBreaker:
                 "Circuit breaker recovery successful",
                 service=self.service_name,
             )
-            self.state = CircuitState.CLOSED
+            self._transition_to(CircuitState.CLOSED)
             self.last_failure_time = None
 
         self.failure_count = 0
@@ -93,6 +108,7 @@ class CircuitBreaker:
         """Record failed request."""
         self.failure_count += 1
         self.last_failure_time = time.time()
+        self.gateway_metrics.record_circuit_breaker_failure(self.service_name)
 
         if self.failure_count >= self.failure_threshold:
             if self.state != CircuitState.OPEN:
@@ -101,7 +117,7 @@ class CircuitBreaker:
                     service=self.service_name,
                     failure_count=self.failure_count,
                 )
-                self.state = CircuitState.OPEN
+                self._transition_to(CircuitState.OPEN)
 
 
 class CircuitBreakerMiddleware(BaseHTTPMiddleware):
@@ -110,6 +126,7 @@ class CircuitBreakerMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
+        gateway_metrics: GatewayMetrics,
         failure_threshold: int = 5,
         recovery_timeout: float = 30.0,
     ) -> None:
@@ -122,6 +139,7 @@ class CircuitBreakerMiddleware(BaseHTTPMiddleware):
         """
         super().__init__(app)
         self.breakers: dict[str, CircuitBreaker] = {}
+        self.gateway_metrics = gateway_metrics
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
 
@@ -130,6 +148,7 @@ class CircuitBreakerMiddleware(BaseHTTPMiddleware):
         if service_name not in self.breakers:
             self.breakers[service_name] = CircuitBreaker(
                 service_name=service_name,
+                gateway_metrics=self.gateway_metrics,
                 failure_threshold=self.failure_threshold,
                 recovery_timeout=self.recovery_timeout,
             )
@@ -154,6 +173,8 @@ class CircuitBreakerMiddleware(BaseHTTPMiddleware):
                 "orders": "order-service",
                 "payments": "payment-service",
                 "deliveries": "delivery-service",
+                "analytics": "analytics-service",
+                "reviews": "review-service",
             }
             return service_map.get(resource)
         return None
@@ -174,6 +195,7 @@ class CircuitBreakerMiddleware(BaseHTTPMiddleware):
 
         # Check if circuit is open
         if breaker.is_open():
+            self.gateway_metrics.record_circuit_breaker_rejection(service_name)
             return JSONResponse(
                 status_code=503,
                 content={

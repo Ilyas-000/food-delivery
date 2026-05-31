@@ -17,7 +17,7 @@ async def health_check() -> dict[str, str]:
     """Basic health check - gateway is running."""
     return {
         "status": "healthy",
-        "service": "api-gateway",
+        "service": settings.service_name,
         "version": settings.version,
     }
 
@@ -97,7 +97,7 @@ async def readiness_check(request: Request) -> JSONResponse:
         status_code=status_code,
         content={
             "status": "ready" if all_healthy else "not_ready",
-            "service": "api-gateway",
+            "service": settings.service_name,
             "dependencies": checks,
         },
     )

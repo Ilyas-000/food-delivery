@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"  # nosec B104
     api_port: int = 8003
     api_prefix: str = "/api/v1"
+    metrics_enabled: bool = True
+    metrics_path: str = "/metrics"
 
     repository_backend: str = "memory"
     saga_backend: str = "mock"

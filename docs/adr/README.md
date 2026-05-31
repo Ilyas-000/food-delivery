@@ -14,6 +14,7 @@ This directory stores Architecture Decision Records for the Food Delivery projec
 | # | File | Title | Status | Date |
 |---|---|---|---|---|
 | 003 | `003-restaurant-service-architecture.md` | Restaurant Service Architecture | Proposed | 2026-01-31 |
+| 004 | `004-observability-stack.md` | Monitoring and Observability Stack | Accepted | 2026-04-07 |
 
 ## Planned ADR Topics (not created yet)
 

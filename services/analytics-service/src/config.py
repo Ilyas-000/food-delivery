@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"  # nosec B104
     api_port: int = 8007
     api_prefix: str = "/api/v1"
+    metrics_enabled: bool = True
+    metrics_path: str = "/metrics"
 
     kafka_enabled: bool = False
     consumer_group: str = "analytics-service-group"

@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from shared.observability.prometheus import ServiceMetrics, install_prometheus
+from shared.observability.request_context import install_request_context
 from src.config import settings
 from src.infrastructure.events.publisher import (
     init_event_publisher,
@@ -38,8 +40,27 @@ def create_app() -> FastAPI:
         debug=settings.debug,
         lifespan=lifespan,
     )
+    metrics = ServiceMetrics(settings.service_name)
+    app.state.delivery_assignments_total = metrics.create_counter(
+        "food_delivery_delivery_assignments_total",
+        "Number of successful courier assignments.",
+        labelnames=("result",),
+    )
+    app.state.delivery_location_updates_total = metrics.create_counter(
+        "food_delivery_delivery_location_updates_total",
+        "Number of successful delivery location updates.",
+        labelnames=("result",),
+    )
+    app.state.deliveries_completed_total = metrics.create_counter(
+        "food_delivery_deliveries_completed_total",
+        "Number of successfully completed deliveries.",
+        labelnames=("result",),
+    )
 
     register_exception_handlers(app)
+    if settings.metrics_enabled:
+        install_prometheus(app, metrics, metrics_path=settings.metrics_path)
+    install_request_context(app, service_name=settings.service_name)
     app.include_router(deliveries.router, prefix=settings.api_prefix)
     app.include_router(order_tracking.router)
 

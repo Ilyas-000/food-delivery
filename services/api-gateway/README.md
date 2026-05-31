@@ -1,142 +1,79 @@
 # API Gateway
 
-Единая точка входа для микросервисов Food Delivery.
+Единая внешняя точка входа в Food Delivery Platform. Gateway валидирует JWT, применяет rate limiting и circuit breaker, проксирует REST и WebSocket запросы в доменные сервисы.
 
-## Возможности
+## Назначение
 
-- Reverse proxy для:
-  - User Service (`/api/v1/auth/*`, `/api/v1/users/*`)
-  - Restaurant Service (`/api/v1/restaurants/*`)
-  - Order Service (`/api/v1/orders/*`)
-  - Payment Service (`/api/v1/payments/*`)
-  - Review Service (`/api/v1/reviews/*`)
-  - Delivery Service (`/api/v1/deliveries/*`, `/ws/orders/*`)
-- JWT валидация для protected маршрутов
-- Rate limiting на Redis (global auth, login, refresh)
-- Circuit breaker middleware
-- Request logging middleware с `X-Request-ID`
-- Health checks: `/health`, `/ready`
+- Проксирование публичных `/api/v1/*` маршрутов в сервисы.
+- Проверка JWT для защищённых маршрутов.
+- Rate limiting auth-flow и глобальных auth-запросов через Redis.
+- Circuit breaker для downstream-сервисов.
+- Проброс `X-Request-ID` и `X-Correlation-ID`.
+- WebSocket proxy для delivery tracking.
 
-## Архитектура
+## Маршруты
 
-```text
-Client
-  -> API Gateway
-      -> User Service
-      -> Restaurant Service
-      -> Order Service
-      -> Payment Service
-      -> Delivery Service
-```
+### Health
 
-Service-to-service orchestration (например saga) выполняется напрямую между сервисами,
-минуя gateway.
+- `GET /health`
+- `GET /ready`
+- `GET /metrics`
+
+### REST proxy
+
+| Префикс | Downstream |
+|---|---|
+| `/api/v1/auth/*` | User Service |
+| `/api/v1/users/*` | User Service |
+| `/api/v1/restaurants/*` | Restaurant Service |
+| `/api/v1/orders/*` | Order Service |
+| `/api/v1/payments/*` | Payment Service |
+| `/api/v1/deliveries/*` | Delivery Service |
+| `/api/v1/analytics/*` | Analytics Service |
+| `/api/v1/reviews/*` | Review Service |
+
+### WebSocket proxy
+
+- `GET /ws/orders/{order_id}` -> Delivery Service
 
 ## Запуск
-
-### Через Compose (рекомендуется)
 
 ```bash
 make up
 curl http://localhost:8000/health
 ```
 
-### Локально
+Локальный запуск только gateway:
 
 ```bash
-# инфраструктура в docker
-make up
-
-# gateway локально
 make dev-gateway
 ```
 
-Для локального запуска проверь значения в окружении:
-- `GATEWAY_REDIS_HOST=localhost`
-- `GATEWAY_USER_SERVICE_URL=http://localhost:8001`
-- `GATEWAY_RESTAURANT_SERVICE_URL=http://localhost:8002`
-- `GATEWAY_ORDER_SERVICE_URL=http://localhost:8003`
-- `GATEWAY_PAYMENT_SERVICE_URL=http://localhost:8004`
-- `GATEWAY_DELIVERY_SERVICE_URL=http://localhost:8005`
-- `GATEWAY_REVIEW_SERVICE_URL=http://localhost:8008`
-
-## Основные endpoints
-
-### Health
-- `GET /health`
-- `GET /ready`
-
-### Auth (public)
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/logout`
-
-### Users (protected)
-- `GET /api/v1/users/me`
-- `PATCH /api/v1/users/me`
-- `GET /api/v1/users/{user_id}`
-
-### Restaurants
-- `POST /api/v1/restaurants` (protected)
-- `GET /api/v1/restaurants`
-- `GET /api/v1/restaurants/{restaurant_id}`
-- `PUT/PATCH /api/v1/restaurants/{restaurant_id}` (protected)
-- `DELETE /api/v1/restaurants/{restaurant_id}` (protected)
-- `GET /api/v1/restaurants/{restaurant_id}/menu`
-- `POST /api/v1/restaurants/{restaurant_id}/menu-items` (protected)
-- `GET /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}`
-- `PUT/PATCH /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}` (protected)
-- `PATCH /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}/availability` (protected)
-- `DELETE /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}` (protected)
-
-### Orders (protected)
-- `POST /api/v1/orders`
-- `GET /api/v1/orders/{order_id}`
-
-### Payments (protected)
-- `POST /api/v1/payments/reservations`
-- `DELETE /api/v1/payments/reservations/{reservation_id}`
-- `GET /api/v1/payments/history`
-- `GET /api/v1/payments/{payment_id}`
-- `POST /api/v1/payments/{payment_id}/confirm`
-- `POST /api/v1/payments/{payment_id}/refund`
-
-### Reviews
-- `POST /api/v1/reviews` (protected)
-- `GET /api/v1/reviews`
-- `GET /api/v1/reviews/{review_id}`
-- `PATCH /api/v1/reviews/{review_id}` (protected)
-- `DELETE /api/v1/reviews/{review_id}` (protected)
-- `GET /api/v1/reviews/restaurants/{restaurant_id}/rating`
-
-### Delivery (protected REST + public WS stream)
-- `POST /api/v1/deliveries/assignments`
-- `DELETE /api/v1/deliveries/assignments/{assignment_id}`
-- `POST /api/v1/deliveries/location`
-- `POST /api/v1/deliveries/{order_id}/complete`
-- `WS /ws/orders/{order_id}`
-
 ## Конфигурация
 
-Смотри `.env.example`. Ключевые параметры:
-- `GATEWAY_JWT_SECRET_KEY`
-- `GATEWAY_REDIS_HOST`, `GATEWAY_REDIS_PORT`, `GATEWAY_REDIS_DB`
-- `GATEWAY_USER_SERVICE_URL`
-- `GATEWAY_RESTAURANT_SERVICE_URL`
-- `GATEWAY_ORDER_SERVICE_URL`
-- `GATEWAY_PAYMENT_SERVICE_URL`
-- `GATEWAY_DELIVERY_SERVICE_URL`
-- `GATEWAY_REVIEW_SERVICE_URL`
-- `GATEWAY_PROXY_TIMEOUT_DELIVERY`
-- `GATEWAY_RATE_LIMIT_ENABLED`
+Настройки читаются из `services/api-gateway/src/config.py` с префиксом `GATEWAY_`.
 
-## Ограничения текущей фазы
+Ключевые группы:
+- JWT secret и algorithm;
+- Redis host/port/db для rate limiting;
+- URL downstream-сервисов;
+- proxy timeouts;
+- circuit breaker thresholds;
+- auth rate limits;
+- structured logging.
 
-- Internal saga flow использует direct service-to-service вызовы (`order-service -> payment/delivery`).
+Docker Compose задаёт значения для локальной сети сервисов в `infrastructure/docker-compose.yml`.
 
 ## Тестирование
 
 ```bash
 make test-gateway
+make test-gateway-unit
+make test-gateway-integration
 ```
+
+## Ограничения
+
+- Circuit breaker хранит состояние в процессе.
+- Endpoint-specific rate limits покрывают не все доменные маршруты.
+- Retry policy для transient downstream errors требует отдельной настройки.

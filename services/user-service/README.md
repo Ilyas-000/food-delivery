@@ -1,111 +1,81 @@
 # User Service
 
-Сервис управления пользователями и аутентификации.
+Сервис пользователей и аутентификации. Отвечает за регистрацию, login, refresh/logout и профиль пользователя.
 
-## Основные функции
+## Назначение
 
-- Регистрация и логин
-- JWT access/refresh токены
-- Logout с ревокацией refresh token
-- Профиль пользователя (получение/обновление)
-- Роли: Customer, Courier, RestaurantOwner, Admin
+- Регистрация пользователя.
+- Login с выдачей access/refresh JWT.
+- Refresh access token.
+- Logout с ревокацией refresh token.
+- Чтение и обновление профиля.
+- Роли пользователя: customer, courier, restaurant owner, admin.
 
-## Технологии
-
-- FastAPI
-- SQLAlchemy 2.0 (async)
-- Alembic
-- PostgreSQL
-- Redis
-- JWT, bcrypt
-
-## Структура проекта (Clean Architecture)
-
-```
-src/
-├── domain/
-├── application/
-├── infrastructure/
-└── interface/
-```
-
-## Запуск
-
-### Через Docker Compose (рекомендуется)
-
-```bash
-make up
-curl http://localhost:8001/health
-```
-
-Если нужно поднять только сервис:
-
-```bash
-docker-compose --env-file .env -f infrastructure/docker-compose.yml up user-service
-```
-
-### Локально (для разработки)
-
-```bash
-# инфраструктура в Docker
-make up
-
-# сервис локально
-make dev-user
-```
-
-## Переменные окружения
-
-Большинство переменных используют prefix `USER_SERVICE_`.
-
-Ключевые настройки:
-- `POSTGRES_HOST` (локально: `localhost`, в Docker: `postgres`)
-- `POSTGRES_PORT`
-- `USER_SERVICE_DB_NAME/USER/PASSWORD`
-- `USER_SERVICE_JWT_SECRET_KEY`
-- `USER_SERVICE_REDIS_HOST` (локально: `localhost`, в Docker: `redis`)
-
-Смотри `.env.example` для полного списка.
-
-## API Endpoints
+## API
 
 ### Health
+
 - `GET /health`
+- `GET /metrics`
 
 ### Auth
+
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 
 ### Users
+
 - `GET /api/v1/users/me`
 - `PATCH /api/v1/users/me`
-- `GET /api/v1/users/{user_id}` (admin)
+- `GET /api/v1/users/{user_id}`
+
+## Хранилища
+
+- PostgreSQL: пользователи и профильные данные.
+- Redis: refresh-token storage.
+
+## Запуск
+
+```bash
+make up
+curl http://localhost:8001/health
+```
+
+Локальный запуск только сервиса:
+
+```bash
+make dev-user
+```
+
+## Конфигурация
+
+Настройки читаются из `services/user-service/src/config.py` с префиксом `USER_SERVICE_`. Общие параметры PostgreSQL читаются через `POSTGRES_`.
+
+Ключевые группы:
+- PostgreSQL database/user/password;
+- JWT secret, algorithm, token TTL;
+- bcrypt rounds;
+- Redis host/port/db;
+- CORS origins.
+
+## Миграции
+
+```bash
+cd services/user-service
+alembic upgrade head
+```
 
 ## Тестирование
 
 ```bash
 make test-user
+make test-user-unit
+make test-user-integration
 ```
 
-## Миграции
+## Ограничения
 
-```bash
-alembic revision --autogenerate -m "description"
-alembic upgrade head
-alembic downgrade -1
-```
-
-## Статус
-
-### Реализовано
-- Регистрация, логин, refresh, logout
-- Профиль пользователя (получение/обновление)
-- Доменные проверки Email/Password
-- Миграции и репозитории
-- Тесты (unit + integration)
-
-### Отложено / Backlog
-- Kafka события (UserCreated/UserUpdated)
-- Redis кеширование
+- Kafka-события пользователей описаны в shared-контрактах, но публикация из User Service не подключена.
+- JTI blacklist для более строгой JWT revocation остаётся техническим долгом.

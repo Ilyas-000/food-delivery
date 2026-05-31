@@ -1,78 +1,71 @@
 # Engineering Conventions
 
-This document captures the agreed engineering rules and style for the project.
-When code changes, keep this file in sync.
+Документ фиксирует инженерные правила проекта. Он описывает текущее целевое поведение кода, а не план будущих работ.
 
-## Architecture Boundaries
+## Архитектурные границы
 
-- Domain is pure: no framework or infrastructure dependencies.
-- Application depends on Domain only.
-- Infrastructure implements Application interfaces.
-- Interface (API, Kafka consumers) depends on Application.
-- Never import SQLAlchemy (or any infrastructure) inside application or domain.
+- `domain` содержит сущности, value objects и доменные исключения.
+- `application` содержит use cases, DTO и интерфейсы портов.
+- `infrastructure` реализует порты application-слоя: БД, Kafka, Redis, HTTP clients.
+- `interface` содержит FastAPI routes, dependencies, exception handlers, WebSocket endpoints и consumers.
+- Импорты направлены внутрь: `interface -> application -> domain`, `infrastructure -> application -> domain`.
+- `domain` и `application` не импортируют FastAPI, SQLAlchemy, Redis, Kafka, HTTP-клиенты и settings.
 
-## Communication Boundaries
+## Межсервисная коммуникация
 
-- External (north-south) traffic goes through API Gateway only.
-- Internal service-to-service (east-west) traffic is direct between services, not через gateway.
-- Saga HTTP steps (for example `order-service -> payment-service/delivery-service`) are internal contracts.
-- Kafka is the default transport for durable inter-service domain events.
-- Redis Pub/Sub is for low-latency ephemeral fanout (for example delivery WebSocket updates), not a replacement for durable event integration.
+- Внешний north-south traffic проходит через API Gateway.
+- Внутренний east-west traffic выполняется напрямую между сервисами.
+- Saga-шаги Order Service используют прямые HTTP-контракты Restaurant, Payment и Delivery Service.
+- Kafka используется для доменных и операционных событий.
+- Redis Pub/Sub используется для низколатентного WebSocket fanout, но не заменяет Kafka для событий, которые нужно хранить и переигрывать.
 
-## Data Modeling & Validation
+## Данные
 
-- Domain uses plain classes/dataclasses and Value Objects for business rules.
-- Application DTOs are Pydantic models (BaseModel) for internal data transfer.
-- API schemas are Pydantic models with minimal type parsing only.
-- Business validation lives in Domain (single source of truth).
-- Use `Annotated` for validation constraints in Pydantic models.
-- Use `Field` only when needed (default_factory, explicit schema behavior).
-- Avoid verbose `Field` examples in code; keep examples in docs when needed.
+- PostgreSQL используется как primary storage для сервисов, у которых есть персистентные write-модели.
+- Сервис владеет своей схемой и миграциями; межсервисные foreign key не создаются.
+- ClickHouse используется для аналитической read-модели.
+- In-memory backend допустим для сервиса только как явно описанное ограничение или тестовый режим.
 
-## Errors & HTTP Responses
+## События
 
-- Error format must follow `docs/API_CONVENTIONS.md`.
-- Domain exceptions map to HTTP responses in interface layer handlers.
-- Use 422 for domain validation errors unless API conventions say otherwise.
+- Kafka topic совпадает с `event_type`: `{service}.{aggregate}.{action}`.
+- Pydantic-контракты событий лежат в `shared/src/shared/events`.
+- События публикуются после изменения состояния, но текущая реализация не гарантирует atomic write + publish без outbox.
+- Обработчики событий должны быть идемпотентными: повторная доставка не должна создавать некорректное состояние.
 
-## Configuration & Environment
+## Конфигурация
 
-- Service settings use `USER_SERVICE_` (or service-specific prefix).
-- Shared PostgreSQL settings use `POSTGRES_*`.
-- Service-specific DB overrides: `SERVICE_DB_NAME/USER/PASSWORD`.
-- Avoid `*_DATABASE_URL` and hardcoded host/port in code.
-- All runtime config should come from settings.
-- Prefer a single root `.env` for local dev; avoid per-service `.env` files.
+- Runtime-настройки читаются через Pydantic Settings.
+- Сервисные переменные используют префикс конкретного сервиса: `USER_SERVICE_`, `ORDER_SERVICE_`, `GATEWAY_` и т.д.
+- Общие настройки инфраструктуры используют отдельные префиксы (`POSTGRES_`, `KAFKA_`, `CLICKHOUSE_`).
+- Host, port, credentials, feature flags и backend selectors не хардкодятся в use cases.
 
-## Logging & Tracing
+## Логирование и трассировка
 
-- Use `structlog` consistently across services.
-- Log at API boundaries (request-level) and key business events only.
-- Prefer structured fields (service, request_id, user_id) over free-form text.
+- Для структурированных логов используется `structlog`.
+- На границах сервиса логируются request id, correlation id, метод, путь, статус и длительность.
+- Бизнес-логи пишутся в точках смены состояния, а не внутри каждого вспомогательного вызова.
+- `X-Request-ID` и `X-Correlation-ID` сохраняются при проксировании и внутренних HTTP-вызовах.
 
-## Monitoring & Metrics
+## Метрики
 
-- Expose Prometheus metrics on `/metrics`.
-- Reuse shared HTTP instrumentation from `shared` instead of duplicating middleware per service.
-- Service-specific operational metrics (for example gateway resilience/rate-limit metrics) should stay close to the owning service/module.
-- Preserve and forward `X-Request-ID` and `X-Correlation-ID` across service boundaries for request correlation tracing.
+- HTTP-метрики Prometheus публикуются на `/metrics`.
+- Общие helpers находятся в `shared/src/shared/observability`.
+- Сервис-специфичные метрики остаются рядом с владельцем поведения: например, rate limiting и circuit breaker в gateway.
 
-## Kafka & Events
+## API
 
-- Topic naming: `{service}.{entity}.{action}`.
-- `event_type` must match the Kafka topic exactly.
-- Event contracts live in `shared/src/shared/events`.
+- Новые endpoints следуют [API_CONVENTIONS.md](API_CONVENTIONS.md).
+- Pydantic schemas в `interface` отвечают за контракт HTTP, DTO в `application` — за входы и выходы use cases.
+- Доменные ошибки мапятся в HTTP в exception handlers.
 
-## Health Endpoints
+## Тесты
 
-- Provide `/health` for liveness.
-- `/ready` is optional; include only if readiness checks differ from liveness.
+- Unit-тесты проверяют domain и application без внешней инфраструктуры.
+- Integration-тесты проверяют реальные адаптеры: БД, HTTP-клиенты, Kafka/Redis при необходимости.
+- E2E-тесты идут через API Gateway и покрывают пользовательский поток.
+- `conftest.py` сервиса подключает `shared.testing.pytest_summary`, если сервис использует общий pytest summary.
 
-## Testing
+## Технический долг
 
-- Service tests should enable the shared pytest summary plugin:
-  `pytest_plugins = ["shared.testing.pytest_summary"]` in `conftest.py`.
-
-## Quick Fixes
-
-- If a change is a temporary workaround, call it out explicitly and record it in `docs/TECH_DEBT.md`.
+Временный workaround должен иметь короткое описание ограничения в [TECH_DEBT.md](TECH_DEBT.md). Закрытые пункты из файла удаляются.

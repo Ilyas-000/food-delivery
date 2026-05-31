@@ -1,20 +1,6 @@
 # Food Delivery Platform
 
-Микросервисная платформа доставки еды с фокусом на надежность, масштабируемость и предсказуемые инженерные практики.
-
-## Обзор
-
-Текущее состояние репозитория:
-
-- ✅ `api-gateway`
-- ✅ `user-service`
-- ✅ `restaurant-service`
-- 🚧 `order-service` (saga orchestration, базовый API)
-- ✅ `payment-service` (lifecycle + saga compatibility)
-- ✅ `delivery-service` (contract lifecycle + tracking + gateway WS proxy)
-- ✅ `notification-service` (event-driven mock email/push, Phase 6 completed)
-- ✅ `analytics-service` (Phase 7 completed: Kafka ingestion + ClickHouse + overview/events API)
-- ✅ `review-service` (Phase 8 completed: restaurant/courier reviews + rating summaries)
+Backend-платформа доставки еды на Python 3.12 и FastAPI. Репозиторий устроен как `uv` workspace: отдельные сервисы лежат в `services/`, общие инфраструктурные утилиты и контракты событий — в `shared/`.
 
 ## Архитектура
 
@@ -24,163 +10,133 @@ Clients
       -> User Service (8001)
       -> Restaurant Service (8002)
       -> Order Service (8003)
-      -> Payment Service (8004, public payment API)
-      -> Delivery Service (8005, public delivery API + WS)
+      -> Payment Service (8004)
+      -> Delivery Service (8005)
+      -> Analytics Service (8007)
+      -> Review Service (8008)
 
-Internal service-to-service:
-Order Service (8003)
-  -> Payment Service (8004, saga contract)
-  -> Delivery Service (8005, saga contract)
+Internal service calls:
+Order Service
+  -> Restaurant Service (menu validation)
+  -> Payment Service (reserve/release)
+  -> Delivery Service (assign/cancel courier)
 
-Infra:
-- PostgreSQL (service databases)
-- Redis (rate limiting + token storage + Pub/Sub for WS fanout)
-- Kafka + Kafka UI (event bus)
-- Prometheus + Alertmanager + Grafana + Loki/Promtail (monitoring profile)
+Review Service
+  -> Order Service (order ownership)
+  -> Delivery Service (delivery status and courier id)
+
+Kafka consumers:
+Notification Service (8006)
+Analytics Service (8007)
+
+Infrastructure:
+- PostgreSQL for service-owned databases
+- Redis for refresh tokens, gateway rate limiting, and delivery WebSocket fanout
+- Kafka for domain and operational events
+- ClickHouse for analytics read storage
+- Prometheus, Alertmanager, Grafana, Loki, Promtail for the monitoring profile
 ```
 
-Ключевые принципы:
+Внешний HTTP и WebSocket трафик для клиентских доменных API проходит через API Gateway. Внутренние orchestration-вызовы выполняются напрямую между сервисами, потому что gateway отвечает за north-south traffic, а не за сервисную координацию.
 
-- единая точка входа через API Gateway;
-- внутренние сервисные вызовы идут напрямую между сервисами;
-- разделение сервисов и контрактов;
-- Clean Architecture в доменных сервисах (`domain -> application -> infrastructure -> interface`);
-- единые API-конвенции и формат ошибок.
-
-## Коммуникационная модель
-
-- Внешние клиенты (`web/mobile/courier app`) вызывают сервисы через API Gateway.
-- Внутренние saga-шаги выполняются напрямую (`order-service -> payment-service`, `order-service -> delivery-service`).
-- Kafka используется для надежных межсервисных событий.
-- Redis Pub/Sub используется для real-time fanout в delivery tracking по WebSocket.
+Доменные сервисы используют Clean Architecture: `domain`, `application`, `infrastructure`, `interface`. Домен не зависит от FastAPI, SQLAlchemy, Kafka или Redis; адаптеры инфраструктуры реализуют интерфейсы application-слоя.
 
 ## Сервисы
 
-| Service | Port | Status | Purpose |
-|---|---:|---|---|
-| API Gateway | 8000 | ✅ | JWT validation, rate limiting, proxying |
-| User Service | 8001 | ✅ | registration, login, profile |
-| Restaurant Service | 8002 | ✅ | restaurants and menu management |
-| Order Service | 8003 | 🚧 | order creation and saga orchestration |
-| Payment Service | 8004 | ✅ | payment reserve/confirm/refund/history + idempotency |
-| Delivery Service | 8005 | ✅ | courier lifecycle + tracking (Phase 5 completed, contract-stage) |
-| Notification Service | 8006 | ✅ | event-driven email/push delivery + notification history |
-| Analytics Service | 8007 | ✅ | Kafka ingestion, ClickHouse storage, overview/events reporting |
-| Review Service | 8008 | ✅ | restaurant/courier reviews and rating summaries |
+| Service | Port | Назначение |
+|---|---:|---|
+| API Gateway | 8000 | JWT validation, rate limiting, circuit breaker, REST/WS proxy |
+| User Service | 8001 | регистрация, login, refresh/logout, профиль пользователя |
+| Restaurant Service | 8002 | рестораны, меню, доступность позиций, поиск по фильтрам |
+| Order Service | 8003 | создание заказа и синхронная saga-оркестрация |
+| Payment Service | 8004 | резерв, release, confirm, refund, история платежей |
+| Delivery Service | 8005 | назначение курьера, статус доставки, WebSocket tracking |
+| Notification Service | 8006 | email/push уведомления по событиям Kafka |
+| Analytics Service | 8007 | ingestion событий Kafka, ClickHouse, отчётные API |
+| Review Service | 8008 | отзывы о ресторанах и курьерах, сводные рейтинги |
 
-## Технологический стек
+## Технологии
 
-- Python 3.12, FastAPI, Pydantic, SQLAlchemy
-- PostgreSQL, Redis, Kafka
-- Prometheus, Alertmanager, Grafana, Loki
-- Docker / Docker Compose
-- `uv` workspace
-- pytest + pytest-asyncio
-- Ruff, mypy, pre-commit
+- Python 3.12, FastAPI, Pydantic
+- SQLAlchemy 2.0, Alembic, PostgreSQL
+- Redis, Kafka, ClickHouse
+- Prometheus, Alertmanager, Grafana, Loki, Promtail
+- Docker Compose
+- pytest, pytest-asyncio, Ruff, mypy, pre-commit
 
 ## Быстрый старт
 
 ```bash
-# 1) Подготовить окружение
-cp .env.example .env
-
-# 2) Установить зависимости и инструменты
+make setup-dev
 make dev-install
-
-# 3) Поднять инфраструктуру и сервисы
 make up
-
-# 4) Проверить состояние
 make health
-
-# 5) Применить миграции
-make migrate
 ```
 
-## Полезные команды
+`make setup-dev` готовит локальную конфигурацию и каталоги, `make up` поднимает инфраструктуру и сервисы через Docker Compose, `make health` проверяет HTTP health endpoints.
+
+## Команды
 
 ```bash
-make down
-make logs
-make monitoring-up
-make monitoring-down
-make monitoring-logs
-make clean
-make kafka-topics
+make up                 # поднять сервисы
+make down               # остановить сервисы
+make logs               # показать логи контейнеров
+make health             # проверить health endpoints
+make migrate            # применить миграции
+make seed               # загрузить seed data
+make monitoring-up      # поднять Prometheus, Grafana, Loki, Alertmanager
+make monitoring-down    # остановить monitoring profile
+```
 
-make test-all
-make test-all-full
-make test-unit
-make test-integration
-make test-e2e
-make test-cov
+```bash
+make test               # repo-level tests
+make test-all           # unit + integration по всем сервисам
+make test-all-full      # unit + integration + e2e
+make test-unit          # unit по всем сервисам
+make test-integration   # integration по всем сервисам
+make test-e2e           # end-to-end tests
+make test-cov           # coverage
+```
 
-make test-user
-make test-user-unit
-make test-user-integration
-make test-gateway
-make test-gateway-unit
-make test-gateway-integration
-make test-restaurant
-make test-restaurant-unit
-make test-restaurant-integration
+Для отдельного сервиса:
+
+```bash
 make test-order
 make test-order-unit
 make test-order-integration
-make test-payment
-make test-payment-unit
-make test-payment-integration
-make test-delivery
-make test-delivery-unit
-make test-delivery-integration
-make test-notification
-make test-notification-unit
-make test-analytics
-make test-analytics-unit
-make test-review
-make test-review-unit
-
-make dev-gateway
-make dev-user
-make dev-restaurant
 make dev-order
-make dev-payment
-make dev-delivery
-make dev-notification
-make dev-analytics
-make dev-review
 ```
 
-`make test` запускает только repo-level тесты из `./tests` (если они есть).
-`make test-all` запускает unit + integration по всем сервисам (без e2e).
+Поддерживаемые имена: `user`, `gateway`, `restaurant`, `order`, `payment`, `delivery`, `notification`, `analytics`, `review`.
 
-## Структура репозитория
+## Репозиторий
 
 ```text
 food-delivery/
-├── docs/
-├── infrastructure/
-├── scripts/
-├── services/
-├── shared/
-├── tests/
+├── docs/             # API conventions, engineering conventions, ADR, tech debt
+├── infrastructure/   # Docker Compose, Kafka/Postgres bootstrap, monitoring config
+├── scripts/          # setup, health checks, migrations, seed data, test matrix
+├── services/         # FastAPI services
+├── shared/           # shared events, Kafka/Redis/JWT helpers, observability
+├── tests/            # repo-level e2e tests
 ├── Makefile
-└── .env.example
+└── pyproject.toml
 ```
-
-## Документация
-
-- `PROGRESS.md` — фактический статус фаз
-- `DEVELOPMENT-ROADMAP.md` — high-level план развития
-- `docs/API_CONVENTIONS.md` — API форматы и ошибки
-- `docs/ENGINEERING_CONVENTIONS.md` — инженерные соглашения
-- `docs/TECH_DEBT.md` — технический долг
-- `docs/adr/` — архитектурные решения (ADR)
 
 ## Monitoring
 
-- `make monitoring-up` поднимает Alertmanager (`http://localhost:9094`), Loki (`http://localhost:3100`), Prometheus (`http://localhost:9090`) и Grafana (`http://localhost:3001`)
-- Prometheus скрейпит `/metrics` у gateway и всех сервисов, а alert rules загружены из `infrastructure/docker/prometheus/alerts/`
-- Promtail собирает stdout/stderr контейнеров в Loki
-- Grafana автоматически получает datasource для Prometheus и Loki, а также готовый dashboard `Phase 10 Observability`
-- request correlation tracing использует `X-Request-ID` и `X-Correlation-ID` через gateway и downstream сервисы
+Monitoring profile запускается отдельно:
+
+```bash
+make monitoring-up
+```
+
+Prometheus скрейпит `/metrics` у gateway и сервисов. Grafana получает datasources и dashboard provisioning из `infrastructure/docker/grafana`. Loki и Promtail собирают stdout/stderr контейнеров. Корреляция запросов построена на `X-Request-ID` и `X-Correlation-ID`.
+
+## Документация
+
+- [docs/API_CONVENTIONS.md](docs/API_CONVENTIONS.md) — HTTP, WebSocket, ошибки, пагинация
+- [docs/ENGINEERING_CONVENTIONS.md](docs/ENGINEERING_CONVENTIONS.md) — инженерные правила проекта
+- [docs/TECH_DEBT.md](docs/TECH_DEBT.md) — открытый технический долг
+- [docs/adr/](docs/adr/) — architecture decision records
+- [CONTRIBUTING.md](CONTRIBUTING.md) — правила контрибьютинга

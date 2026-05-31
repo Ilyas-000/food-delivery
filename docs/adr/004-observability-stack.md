@@ -1,4 +1,4 @@
-# ADR-004: Monitoring and Observability Stack
+# ADR-004: Observability Stack
 
 **Status**: Accepted
 **Date**: 2026-04-07
@@ -7,83 +7,83 @@
 
 ## Context
 
-By the end of Phase 9 the platform had working service contracts and end-to-end tests,
-but no unified observability story. We needed:
-- technical metrics for HTTP traffic and gateway resilience;
-- business counters for core delivery flow milestones;
-- centralized logs across compose-managed services;
+The platform has multiple FastAPI services behind a gateway, several infrastructure dependencies, Kafka consumers and background retry loops. Debugging requires more than individual container logs.
+
+The observability baseline must provide:
+- HTTP metrics for gateway and services;
+- service-specific counters where they are operationally useful;
+- centralized container logs;
 - request correlation across gateway and downstream services;
-- dashboards and alerts without introducing heavy operational complexity.
+- a local Docker Compose profile that does not require a separate platform stack.
 
 ## Decision
 
-We will use a compose-friendly observability stack built around:
-- Prometheus for metrics scraping and alert evaluation;
+The repository includes a Docker Compose monitoring profile with:
+- Prometheus for metrics scraping and alert rule evaluation;
 - Alertmanager for alert routing;
-- Grafana for dashboards and exploration;
-- Loki + Promtail for centralized container logs;
+- Grafana for dashboards and log exploration;
+- Loki and Promtail for container logs;
 - shared request/correlation id middleware for lightweight cross-service tracing.
 
-Application-level instrumentation will stay in `shared` when it is generic
-(HTTP metrics, request context propagation) and remain service-local when it is
-domain- or service-specific (gateway resilience metrics, business counters).
+Common HTTP instrumentation lives in `shared/src/shared/observability`. Service-specific metrics stay in the service that owns the behavior.
 
 ## Consequences
 
-### Positive Consequences
+### Positive
 
-- Every service exposes `/metrics` consistently.
-- Gateway failures and throttling are observable without log parsing.
-- Logs become queryable in one place through Grafana/Loki.
-- Request paths can be correlated across services using shared headers.
-- The stack stays runnable in local Docker Compose without a separate platform team.
+- Every service can expose `/metrics` consistently.
+- Gateway throttling and circuit breaker behavior can be observed without reading raw logs.
+- Container logs are queryable from one place.
+- `X-Request-ID` and `X-Correlation-ID` make request paths traceable through gateway and downstream calls.
+- The stack remains runnable from Docker Compose.
 
-### Negative Consequences
+### Negative
 
-- Correlation tracing is lighter-weight than full OpenTelemetry spans.
-- Promtail/Loki adds more moving parts to the local compose environment.
-- Alert rules are intentionally simple and may need tuning as traffic patterns evolve.
+- Correlation-id tracing is less detailed than span-based tracing.
+- Loki and Promtail add services to local runtime.
+- Alert thresholds need tuning with real traffic data.
 
 ### Risks
 
-- Promtail log discovery may need host-specific adjustments on some Docker setups.
-- Correlation-id based tracing gives less detail than span-based tracing; if that becomes limiting, migrate to OpenTelemetry later without replacing the current metrics/logging baseline.
+- Docker log discovery can differ between host setups.
+- Missing OpenTelemetry spans limits latency breakdown inside multi-hop flows.
 
 ## Alternatives Considered
 
-### Alternative 1: Full OpenTelemetry + Tempo/Jaeger immediately
+### OpenTelemetry with Tempo or Jaeger immediately
 
 **Pros**:
-- richer distributed tracing;
-- standard span model.
+- Standard distributed tracing model.
+- Detailed span timing across service boundaries.
 
 **Cons**:
-- more dependencies and runtime complexity;
-- higher rollout cost across every service.
+- More moving parts and instrumentation work.
+- Harder local setup.
 
-**Why rejected**: Too much operational weight for the current educational/local-first stage.
+**Why rejected**: metrics, logs and request correlation cover the current debugging needs with less runtime complexity.
 
-### Alternative 2: Metrics only, no centralized logs
+### Metrics only
 
 **Pros**:
-- smallest implementation footprint;
-- fewer infra services.
+- Smallest infrastructure footprint.
+- Easier setup.
 
 **Cons**:
-- harder debugging for cross-service failures;
-- no single place to inspect service logs.
+- Multi-service failures are harder to diagnose without centralized logs.
+- Log search stays fragmented across containers.
 
-**Why rejected**: Phase 10 explicitly requires logs/observability beyond metrics alone.
+**Why rejected**: centralized logs are necessary for gateway/downstream and consumer debugging.
 
 ## Implementation Notes
 
-- Shared helpers live in `shared/src/shared/observability`.
-- Prometheus scrape rules and alerts live in `infrastructure/docker/prometheus`.
-- Grafana datasources and dashboards are provisioned from `infrastructure/docker/grafana`.
-- Loki/Promtail configuration lives in `infrastructure/docker/loki` and `infrastructure/docker/promtail`.
+- Prometheus config: `infrastructure/docker/prometheus/prometheus.yml`
+- Alert rules: `infrastructure/docker/prometheus/alerts`
+- Grafana provisioning: `infrastructure/docker/grafana`
+- Loki config: `infrastructure/docker/loki/loki.yml`
+- Promtail config: `infrastructure/docker/promtail/promtail.yml`
+- Shared instrumentation: `shared/src/shared/observability`
 
 ## References
 
-- `PROGRESS.md`
-- `docs/ENGINEERING_CONVENTIONS.md`
-- `infrastructure/docker-compose.yml`
+- [001-microservices-architecture-baseline.md](001-microservices-architecture-baseline.md)
+- [docs/ENGINEERING_CONVENTIONS.md](../ENGINEERING_CONVENTIONS.md)

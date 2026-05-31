@@ -1,20 +1,25 @@
 # Review Service
 
-Review and rating service for restaurants and couriers in the Food Delivery platform.
+Сервис отзывов и рейтингов. Хранит отзывы о ресторанах и курьерах, проверяет право на отзыв через Order и Delivery Service.
 
-Phase 8 status: completed in contract-stage.
+## Назначение
 
-## Scope
+- Создание, чтение, обновление и удаление отзывов.
+- Поддержка целей `restaurant` и `courier`.
+- Проверка владения заказом.
+- Проверка завершённой доставки перед созданием отзыва.
+- Расчёт сводного рейтинга ресторана или курьера.
+- Публикация события создания отзыва.
 
-- Create/update/delete restaurant and courier reviews
-- Validate that review author owns the order
-- Validate that delivery is completed before review creation
-- Calculate restaurant and courier rating summaries
-- Publish `review-service.review.created` events
+## API
 
-## API Endpoints
+### Health
 
 - `GET /health`
+- `GET /metrics`
+
+### Reviews
+
 - `POST /api/v1/reviews`
 - `GET /api/v1/reviews`
 - `GET /api/v1/reviews/{review_id}`
@@ -23,18 +28,59 @@ Phase 8 status: completed in contract-stage.
 - `GET /api/v1/reviews/restaurants/{restaurant_id}/rating`
 - `GET /api/v1/reviews/couriers/{courier_id}/rating`
 
-## Notes
+## События Kafka
 
-- External access should go through `api-gateway`.
-- Review validation uses direct internal HTTP calls to:
-  - `order-service` for order ownership and restaurant id
-  - `delivery-service` for delivery completion status and courier identity
-- Review targets are modeled as `target_type + target_id` (`restaurant` / `courier`).
-- Courier identity currently comes from `delivery-service` assignment contract; in local/dev
-  flow it can be auto-selected from `DELIVERY_SERVICE_MOCK_COURIER_IDS`.
+Публикует:
+- `review-service.review.created`
 
-## Testing
+## Валидация
+
+Review Service использует прямые HTTP-вызовы:
+- Order Service — проверка владения заказом и restaurant id;
+- Delivery Service — статус доставки и courier id.
+
+Цель отзыва хранится как `target_type + target_id`.
+
+## Запуск
+
+```bash
+make up
+curl http://localhost:8008/health
+```
+
+Локальный запуск только сервиса:
+
+```bash
+make dev-review
+```
+
+## Конфигурация
+
+Настройки читаются из `services/review-service/src/config.py` с префиксом `REVIEW_SERVICE_`. Общие настройки PostgreSQL читаются через `POSTGRES_`, Kafka — через `KAFKA_`.
+
+Ключевые группы:
+- PostgreSQL database/user/password;
+- Order Service URL;
+- Delivery Service URL;
+- Kafka enabled flag;
+- metrics path.
+
+## Миграции
+
+```bash
+cd services/review-service
+alembic upgrade head
+```
+
+## Тестирование
 
 ```bash
 make test-review
+make test-review-unit
+make test-review-integration
 ```
+
+## Ограничения
+
+- Courier identity приходит из Delivery Service contract, который сейчас использует mock-пул курьеров.
+- Kafka publish best-effort до внедрения outbox.

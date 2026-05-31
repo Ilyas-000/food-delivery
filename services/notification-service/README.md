@@ -1,35 +1,73 @@
 # Notification Service
 
-Event-driven service for customer notifications in the Food Delivery platform.
+Сервис уведомлений. Потребляет события заказа и доставки из Kafka, создаёт email/push уведомления и публикует события отправки.
 
-## Scope
+## Назначение
 
-- Consume domain events from Kafka
-- Send mock email notifications
-- Send mock push notifications
-- Store sent notifications in memory for the current phase
+- Потребление доменных событий из Kafka.
+- Отправка email-уведомлений через mock client.
+- Отправка push-уведомлений через mock client.
+- Чтение истории уведомлений.
+- Публикация событий отправки уведомлений.
 
-## API Endpoints
+## API
+
+### Health
 
 - `GET /health`
+- `GET /metrics`
+
+### Notifications
+
 - `POST /api/v1/notifications/email`
 - `POST /api/v1/notifications/push`
 - `GET /api/v1/notifications`
 - `GET /api/v1/notifications/{notification_id}`
 
-## Consumed Events
+## События Kafka
 
+Потребляет:
 - `order-service.order.created`
 - `order-service.order.confirmed`
 - `delivery-service.delivery.assigned`
 
-## Produced Events
-
+Публикует:
 - `notification-service.notification.email_sent`
 - `notification-service.notification.push_sent`
 
-## Notes
+## Запуск
 
-- Email and push delivery are mock implementations in this phase.
-- Kafka consumption/publishing is optional and controlled by `NOTIFICATION_SERVICE_KAFKA_ENABLED`.
-- Recipient addressing is mock-stage: user ids are converted into deterministic email/push targets.
+```bash
+make up
+curl http://localhost:8006/health
+```
+
+Локальный запуск только сервиса:
+
+```bash
+make dev-notification
+```
+
+## Конфигурация
+
+Настройки читаются из `services/notification-service/src/config.py` с префиксом `NOTIFICATION_SERVICE_`. Общие настройки Kafka читаются через `KAFKA_`.
+
+Ключевые группы:
+- Kafka enabled flag;
+- consumer group;
+- mock email domain;
+- mock push prefix;
+- metrics path.
+
+## Тестирование
+
+```bash
+make test-notification
+make test-notification-unit
+```
+
+## Ограничения
+
+- Email и push clients являются mock-адаптерами.
+- История уведомлений хранится in-memory.
+- Consumer readiness нужно отделить от liveness для более точной диагностики.

@@ -1,97 +1,97 @@
 # Restaurant Service
 
-Restaurant and menu management service for the Food Delivery platform.
+Сервис ресторанов и меню. Хранит каталог ресторанов, позиции меню и доступность позиций.
 
-## Overview
+## Назначение
 
-The Restaurant Service manages:
-- Restaurant creation and updates (by restaurant owners)
-- Menu management (add/update/delete menu items)
-- Restaurant search and discovery
-- Menu item availability tracking
+- Создание, обновление и деактивация ресторанов.
+- Поиск ресторанов по фильтрам.
+- CRUD позиций меню.
+- Переключение доступности menu item.
+- Валидация ресторанов и меню для Order Service.
 
-## Architecture
+## API
 
-This service follows **Clean Architecture** pattern:
+### Health
 
-```
-src/
-├── domain/              # Business logic (entities, value objects, exceptions)
-├── application/         # Use cases and DTOs
-├── infrastructure/      # Database, caching, external services
-└── interface/           # HTTP API (FastAPI routes)
-```
+- `GET /health`
+- `GET /metrics`
 
-## API Endpoints
+### Restaurants
 
-### Restaurant Management (Restaurant Owner only)
-- `POST /api/v1/restaurants` - Create restaurant
-- `PUT /api/v1/restaurants/{id}` - Update restaurant
-- `DELETE /api/v1/restaurants/{id}` - Deactivate restaurant
+- `POST /api/v1/restaurants`
+- `GET /api/v1/restaurants`
+- `GET /api/v1/restaurants/{restaurant_id}`
+- `PUT /api/v1/restaurants/{restaurant_id}`
+- `PATCH /api/v1/restaurants/{restaurant_id}`
+- `DELETE /api/v1/restaurants/{restaurant_id}`
+- `GET /api/v1/restaurants/{restaurant_id}/menu`
 
-### Restaurant Discovery (Public)
-- `GET /api/v1/restaurants` - Search/list restaurants
-- `GET /api/v1/restaurants/{id}` - Get single restaurant
-- `GET /api/v1/restaurants/{id}/menu` - Get restaurant menu
+### Menu items
 
-### Menu Management (Owner only)
-- `POST /api/v1/restaurants/{id}/menu-items` - Add menu item
-- `GET /api/v1/restaurants/{id}/menu-items/{item_id}` - Get menu item
-- `PUT /api/v1/restaurants/{id}/menu-items/{item_id}` - Update menu item
-- `PATCH /api/v1/restaurants/{id}/menu-items/{item_id}/availability` - Toggle availability
-- `DELETE /api/v1/restaurants/{id}/menu-items/{item_id}` - Delete menu item
+- `POST /api/v1/restaurants/{restaurant_id}/menu-items`
+- `GET /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}`
+- `PUT /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}`
+- `PATCH /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}`
+- `PATCH /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}/availability`
+- `DELETE /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}`
 
-## Configuration
+## События Kafka
 
-Environment variables (prefix: `RESTAURANT_SERVICE_`):
+При включённой публикации сервис отправляет текущие `event_type`:
+- `restaurant.restaurant.created`
+- `restaurant.restaurant.updated`
+- `restaurant.restaurant.deactivated`
+- `restaurant.menu_item.created`
+- `restaurant.menu_item.updated`
+- `restaurant.menu_item.availability_changed`
+- `restaurant.menu_item.deleted`
 
-- `RESTAURANT_SERVICE_DB_NAME` - Database name
-- `RESTAURANT_SERVICE_DB_USER` - Database user
-- `RESTAURANT_SERVICE_DB_PASSWORD` - Database password
-- `RESTAURANT_SERVICE_KAFKA_ENABLED` - Enable Kafka event publishing (`true/false`)
-- `RESTAURANT_SERVICE_REDIS_HOST` - Redis host (for caching)
-- `RESTAURANT_SERVICE_REDIS_PORT` - Redis port
-- `RESTAURANT_SERVICE_REDIS_DB` - Redis database number
+## Хранилище
 
-Shared Kafka settings:
-- `KAFKA_BOOTSTRAP_SERVERS` - Kafka broker endpoints (for example, `localhost:9093`)
+- PostgreSQL: `restaurants`, `menu_items`.
+- Redis-параметры присутствуют в конфигурации, но каталог сейчас читается из PostgreSQL.
 
-## Development
+## Запуск
 
 ```bash
-# Install dependencies
-cd services/restaurant-service
-uv sync --all-extras
+make up
+curl http://localhost:8002/health
+```
 
-# Run locally (hot reload)
+Локальный запуск только сервиса:
+
+```bash
 make dev-restaurant
+```
 
-# Run tests
-make test-restaurant
+## Конфигурация
 
-# Run migrations
+Настройки читаются из `services/restaurant-service/src/config.py` с префиксом `RESTAURANT_SERVICE_`. Общие настройки Kafka читаются через `KAFKA_`, PostgreSQL — через `POSTGRES_`.
+
+Ключевые группы:
+- PostgreSQL database/user/password;
+- API host/port/prefix;
+- Kafka enabled flag;
+- metrics path.
+
+## Миграции
+
+```bash
 cd services/restaurant-service
 alembic upgrade head
 ```
 
-## Testing
+## Тестирование
 
 ```bash
-# Unit tests
-pytest -m unit
-
-# Integration tests
-pytest -m integration
-
-# E2E tests
-pytest -m e2e
-
-# With coverage
-pytest --cov=src --cov-report=html
+make test-restaurant
+make test-restaurant-unit
+make test-restaurant-integration
 ```
 
-## Documentation
+## Ограничения
 
-- [ADR-003: Restaurant Service Architecture](../../docs/adr/003-restaurant-service-architecture.md)
-- [API Conventions](../../docs/API_CONVENTIONS.md)
-- [Engineering Conventions](../../docs/ENGINEERING_CONVENTIONS.md)
+- Поиск реализован через фильтры PostgreSQL, без отдельного search engine.
+- Публикация Kafka-событий best-effort до внедрения outbox.
+- Именование restaurant events ещё не приведено к общему service-prefixed формату.

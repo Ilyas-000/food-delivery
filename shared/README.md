@@ -1,116 +1,111 @@
 # Food Delivery Shared
 
-Shared code and utilities for all Food Delivery microservices.
+Общий пакет для контрактов и инфраструктурных helpers, которые подключают сервисы Food Delivery Platform.
 
-## Structure
+## Принцип
 
-```
+`shared` содержит общую инфраструктуру и межсервисные контракты. Доменная логика конкретного сервиса остаётся внутри этого сервиса.
+
+В пакет входят:
+- Pydantic-контракты Kafka-событий;
+- Kafka producer/consumer wrappers;
+- Redis client wrapper;
+- JWT helpers;
+- Prometheus instrumentation helpers;
+- request/correlation context helpers;
+- базовые исключения;
+- pytest summary helper.
+
+В пакет не входят:
+- service-specific entities;
+- use cases;
+- ORM base classes сервисов;
+- repositories;
+- правила конкретного домена.
+
+## Структура
+
+```text
 shared/
 ├── src/shared/
-│   ├── events/         # Event models (Pydantic schemas for service contracts)
-│   ├── common/         # Common infrastructure utilities
-│   │   ├── kafka.py    # Kafka producer/consumer wrappers
-│   │   ├── redis.py    # Redis client wrapper
-│   │   └── jwt.py      # JWT token utilities
-│   ├── observability/  # Shared Prometheus instrumentation helpers
-│   └── exceptions/     # Base exceptions
-└── tests/              # Unit tests
+│   ├── common/
+│   │   ├── jwt.py
+│   │   ├── kafka.py
+│   │   └── redis.py
+│   ├── events/
+│   ├── exceptions/
+│   ├── observability/
+│   └── testing/
+└── pyproject.toml
 ```
 
-## Philosophy
+## События
 
-**Share infrastructure, not domain logic.**
-
-This library contains:
-- Infrastructure clients (Kafka, Redis)
-- Event contracts (cross-service communication)
-- JWT utilities (authentication)
-- Observability helpers (Prometheus HTTP instrumentation)
-- Request context helpers (request/correlation ids + request-level logging)
-
-This library does NOT contain:
-- ORM base classes (each service manages own DB)
-- Password hashing (domain-specific to User Service)
-- Domain entities or business logic
-
-## Installation
-
-This package is automatically installed in the uv workspace. Services can use it directly:
+Event envelope:
 
 ```python
-from shared.events.order_events import OrderCreatedEvent
-from shared.common.kafka import KafkaProducer
-from shared.common.redis import RedisClient
-from shared.common.jwt import create_access_token
+from shared.events.base import BaseEvent
 ```
 
-## Usage
-
-### Events
-
-Event definitions are in separate modules by domain:
+Доменные события разделены по модулям:
 
 ```python
-# Events are defined in shared/events/ directory
-# Services import explicitly:
 from shared.events.order_events import OrderCreatedEvent, OrderConfirmedEvent
-from shared.events.payment_events import PaymentReservedEvent
-
-# Each service defines its own events in shared/events/{service}_events.py
+from shared.events.delivery_events import DeliveryAssignedEvent
+from shared.events.notification_events import NotificationEmailSentEvent
 ```
 
-### Kafka
+`event_type` должен совпадать с Kafka topic.
+
+## Kafka
 
 ```python
-from shared.common.kafka import KafkaConsumer, KafkaProducer
+from shared.common.kafka import KafkaProducer
 
-# Producer
-producer = KafkaProducer(bootstrap_servers="localhost:9092")
-await producer.send("order-service.order.created", event.model_dump_json())
-
-# Consumer
-consumer = KafkaConsumer(
-    topic="order-service.order.created",
-    bootstrap_servers="localhost:9092",
-    group_id="user-service-group"
+producer = KafkaProducer(
+    bootstrap_servers="localhost:9093",
+    client_id="order-service",
 )
-async for message in consumer:
-    # Process message
-    pass
+await producer.start()
+await producer.send("order-service.order.created", event, key=event.aggregate_id)
+await producer.stop()
 ```
 
-### Redis
+## Redis
 
 ```python
 from shared.common.redis import RedisClient
 
-redis = RedisClient(host="localhost", port=6379)
-await redis.set("key", "value", expire=3600)
+redis = RedisClient(host="localhost", port=6379, db=1)
+await redis.connect()
+await redis.set("key", "value", expire=60)
 value = await redis.get("key")
+await redis.close()
 ```
 
-### JWT Utilities
+## JWT
 
 ```python
 from shared.common.jwt import create_access_token, decode_token
 
-# Create token
-token = create_access_token(user_id="123", role="customer")
-
-# Decode and verify
-payload = decode_token(token, secret_key="...")
+token = create_access_token(user_id="user-id", role="customer")
+payload = decode_token(token, secret_key="secret")
 ```
 
-## Development
+## Observability
+
+```python
+from shared.observability.prometheus import ServiceMetrics, install_prometheus
+
+metrics = ServiceMetrics("order-service")
+install_prometheus(app, metrics, metrics_path="/metrics")
+```
+
+## Разработка
 
 ```bash
-# Install dependencies
 cd shared
 uv sync --all-extras
-
-# Run tests
 pytest
-
-# Type checking
 mypy src/
 ```

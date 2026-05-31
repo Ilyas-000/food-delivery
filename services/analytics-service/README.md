@@ -1,34 +1,73 @@
 # Analytics Service
 
-Read-only analytics service for operational reporting in the Food Delivery platform.
+Read-only сервис аналитики. Потребляет Kafka-события, нормализует их в аналитические записи и отдаёт отчётные endpoints.
 
-Phase status: `Phase 7 completed`.
+## Назначение
 
-## Scope
+- Потребление операционных событий из Kafka.
+- Запись событий в ClickHouse.
+- In-memory storage backend для лёгких тестовых сценариев.
+- Отдача overview metrics и последних событий.
 
-- Consume operational events from Kafka
-- Store normalized analytics rows in ClickHouse
-- Expose basic reporting endpoints for overview metrics and recent events
+## API
 
-## Consumed Events
+### Health
 
+- `GET /health`
+- `GET /metrics`
+
+### Analytics
+
+- `GET /api/v1/analytics/overview`
+- `GET /api/v1/analytics/events`
+
+## События Kafka
+
+Потребляет:
 - `order-service.order.created`
 - `order-service.order.confirmed`
 - `delivery-service.delivery.assigned`
 - `notification-service.notification.email_sent`
 - `notification-service.notification.push_sent`
 
-## API Endpoints
+## Хранилище
 
-- `GET /health`
-- `GET /api/v1/analytics/overview`
-- `GET /api/v1/analytics/events`
+Backend выбирается настройкой:
+- `clickhouse` — запись в ClickHouse table;
+- `memory` — in-memory repository.
 
-## Notes
+## Запуск
 
-- Storage backend is configurable via `ANALYTICS_SERVICE_STORAGE_BACKEND`:
-  - `clickhouse` for Phase 7 runtime
-  - `memory` for lightweight tests/dev mode
-- Kafka consumption is controlled by `ANALYTICS_SERVICE_KAFKA_ENABLED`.
-- External access should go through `api-gateway`.
-- Docker Compose ships a dev/test ClickHouse user override so service-to-service HTTP access works inside the compose network.
+```bash
+make up
+curl http://localhost:8007/health
+```
+
+Локальный запуск только сервиса:
+
+```bash
+make dev-analytics
+```
+
+## Конфигурация
+
+Настройки читаются из `services/analytics-service/src/config.py` с префиксом `ANALYTICS_SERVICE_`. Kafka использует `KAFKA_`, ClickHouse — `CLICKHOUSE_`.
+
+Ключевые группы:
+- Kafka enabled flag;
+- consumer group;
+- storage backend;
+- ClickHouse table and timeout;
+- metrics path.
+
+## Тестирование
+
+```bash
+make test-analytics
+make test-analytics-unit
+```
+
+## Ограничения
+
+- Сервис не выполняет бизнес-операции; он строит read model из событий.
+- Consumer readiness нужно отделить от liveness для более точной диагностики.

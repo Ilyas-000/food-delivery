@@ -1,198 +1,80 @@
 # API Conventions
 
-This document defines the API conventions and standards for all microservices in the Food Delivery platform.
+Документ задаёт публичные HTTP и WebSocket соглашения для сервисов Food Delivery Platform.
 
-## General Principles
+## Базовые правила
 
-1. **RESTful Design** - Follow REST principles
-2. **Consistency** - Same patterns across all services
-3. **Versioning** - All APIs versioned (v1, v2, etc.)
-4. **JSON** - Default content type
-5. **HTTPS** - In production (HTTP in development)
+- Публичный HTTP API версионируется через `/api/v1`.
+- Внешний клиентский трафик проходит через API Gateway.
+- JSON используется для запросов и ответов HTTP API.
+- Имена полей в JSON: `snake_case`.
+- Временные метки передаются в ISO 8601 с UTC timestamp.
+- Защищённые маршруты принимают `Authorization: Bearer <jwt>`.
+- `X-Request-ID` и `X-Correlation-ID` пробрасываются через gateway и downstream-сервисы.
 
----
+## URL
 
-## URL Structure
-
-### Base URL Pattern
-
-```
-http(s)://{host}:{port}/api/v{version}/{resource}
-```
-
-**Examples:**
-```
-http://localhost:8001/api/v1/users
-http://localhost:8002/api/v1/restaurants
-http://localhost:8003/api/v1/orders
+```text
+/api/v1/{resource}
+/api/v1/{resource}/{id}
+/api/v1/{resource}/{id}/{sub_resource}
 ```
 
-### Resource Naming
-
-- ✅ Use **plural nouns**: `/users`, `/orders`, `/restaurants`
-- ✅ Use **kebab-case** for multi-word resources: `/menu-items`, `/delivery-addresses`
-- ❌ Avoid verbs: `/getUser`, `/createOrder`
-- ❌ Avoid uppercase: `/Users`, `/Orders`
-
-### Nested Resources
-
-Use nesting to show relationships (max 2 levels):
-
-```
-GET  /api/v1/restaurants/{id}/menu-items
-GET  /api/v1/orders/{id}/items
-POST /api/v1/users/{id}/addresses
-```
-
-For deep nesting, use query parameters instead:
-
-```
-✅ GET /api/v1/reviews?restaurant_id=123
-❌ GET /api/v1/restaurants/123/reviews/456/comments
-```
-
----
-
-## HTTP Methods
-
-| Method | Usage | Idempotent | Safe |
-|--------|-------|------------|------|
-| `GET` | Retrieve resource(s) | ✅ | ✅ |
-| `POST` | Create new resource | ❌ | ❌ |
-| `PUT` | Replace entire resource | ✅ | ❌ |
-| `PATCH` | Partial update | ❌* | ❌ |
-| `DELETE` | Remove resource | ✅ | ❌ |
-
-*PATCH should be idempotent when possible
-
-### Examples
+Ресурсы именуются существительными во множественном числе:
 
 ```http
-GET    /api/v1/users          # List users
-GET    /api/v1/users/{id}     # Get specific user
-POST   /api/v1/users          # Create user
-PUT    /api/v1/users/{id}     # Replace user
-PATCH  /api/v1/users/{id}     # Update user fields
-DELETE /api/v1/users/{id}     # Delete user
+GET  /api/v1/users/me
+GET  /api/v1/restaurants
+POST /api/v1/orders
+GET  /api/v1/reviews/restaurants/{restaurant_id}/rating
 ```
 
----
+Для составных ресурсов используется `kebab-case`:
 
-## HTTP Status Codes
-
-### Success (2xx)
-
-| Code | Meaning | Usage |
-|------|---------|-------|
-| `200 OK` | Success | GET, PUT, PATCH (with response body) |
-| `201 Created` | Resource created | POST |
-| `202 Accepted` | Async processing started | POST (async operations) |
-| `204 No Content` | Success, no body | DELETE, PUT/PATCH (no response body) |
-
-### Client Errors (4xx)
-
-| Code | Meaning | Usage |
-|------|---------|-------|
-| `400 Bad Request` | Invalid request data | Validation errors |
-| `401 Unauthorized` | Missing/invalid auth | No JWT token |
-| `403 Forbidden` | Insufficient permissions | Valid token, wrong role |
-| `404 Not Found` | Resource doesn't exist | GET/PUT/PATCH/DELETE |
-| `409 Conflict` | Resource conflict | Duplicate creation |
-| `422 Unprocessable Entity` | Semantic errors | Business logic validation |
-| `429 Too Many Requests` | Rate limit exceeded | Rate limiting |
-
-### Server Errors (5xx)
-
-| Code | Meaning | Usage |
-|------|---------|-------|
-| `500 Internal Server Error` | Server error | Unexpected errors |
-| `502 Bad Gateway` | Upstream service error | Service communication |
-| `503 Service Unavailable` | Service down | Maintenance, overload |
-| `504 Gateway Timeout` | Upstream timeout | Slow service response |
-
----
-
-## Request Format
-
-### Headers
-
-**Required for all requests:**
 ```http
-Content-Type: application/json
-Accept: application/json
+POST  /api/v1/restaurants/{restaurant_id}/menu-items
+PATCH /api/v1/restaurants/{restaurant_id}/menu-items/{menu_item_id}/availability
 ```
 
-**For authenticated requests:**
+Глубокая вложенность заменяется query-параметрами:
+
 ```http
-Authorization: Bearer {jwt_token}
+GET /api/v1/reviews?target_type=restaurant&target_id={restaurant_id}
 ```
 
-**For idempotency (critical operations):**
-```http
-Idempotency-Key: {uuid}
-```
+## HTTP-методы
 
-**For tracing:**
-```http
-X-Request-ID: {uuid}
-X-Correlation-ID: {uuid}
-```
+| Метод | Использование |
+|---|---|
+| `GET` | чтение ресурса или списка |
+| `POST` | создание ресурса или запуск команды |
+| `PUT` | полная замена ресурса |
+| `PATCH` | частичное обновление ресурса |
+| `DELETE` | удаление, деактивация или компенсация |
 
-### Request Body (POST/PUT/PATCH)
+## HTTP-статусы
 
-```json
-{
-  "field_name": "value",
-  "nested_object": {
-    "key": "value"
-  },
-  "array_field": ["item1", "item2"]
-}
-```
+| Код | Смысл |
+|---:|---|
+| `200` | успешное чтение или обновление с телом ответа |
+| `201` | ресурс создан |
+| `202` | команда принята в асинхронную обработку |
+| `204` | операция выполнена, тело не возвращается |
+| `400` | синтаксически некорректный запрос |
+| `401` | отсутствует или невалиден JWT |
+| `403` | прав недостаточно |
+| `404` | ресурс не найден |
+| `409` | конфликт состояния или дубликат |
+| `422` | нарушение бизнес-правила |
+| `429` | превышен rate limit |
+| `500` | непредвиденная ошибка сервиса |
+| `502` | upstream-сервис вернул ошибку или недоступен |
+| `503` | сервис временно не готов |
+| `504` | таймаут upstream-сервиса |
 
-**Field naming:**
-- Use `snake_case` for JSON fields
-- Match Python naming conventions
+## Ошибки
 
----
-
-## Response Format
-
-### Success Response
-
-```json
-{
-  "id": "uuid-here",
-  "field_name": "value",
-  "created_at": "2026-01-04T12:34:56.789Z",
-  "updated_at": "2026-01-04T12:34:56.789Z"
-}
-```
-
-### List Response
-
-```json
-{
-  "items": [
-    {
-      "id": "uuid-1",
-      "name": "Item 1"
-    },
-    {
-      "id": "uuid-2",
-      "name": "Item 2"
-    }
-  ],
-  "total": 42,
-  "page": 1,
-  "page_size": 20,
-  "total_pages": 3
-}
-```
-
-### Error Response
-
-**Standard error format:**
+Стандартный формат:
 
 ```json
 {
@@ -203,352 +85,102 @@ X-Correlation-ID: {uuid}
       {
         "field": "email",
         "message": "Invalid email format"
-      },
-      {
-        "field": "password",
-        "message": "Password must be at least 8 characters"
       }
     ],
-    "request_id": "uuid-here",
-    "timestamp": "2026-01-04T12:34:56.789Z"
+    "request_id": "7af7d2cb-09f7-4a8f-97b5-4bb08b6d5f3c",
+    "timestamp": "2026-05-31T12:34:56.789Z"
   }
 }
 ```
 
-**Error codes:**
+Базовые коды:
 
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| `VALIDATION_ERROR` | 400 | Request validation failed |
-| `UNAUTHORIZED` | 401 | Authentication required |
-| `FORBIDDEN` | 403 | Insufficient permissions |
-| `NOT_FOUND` | 404 | Resource not found |
-| `CONFLICT` | 409 | Resource already exists |
-| `BUSINESS_RULE_VIOLATION` | 422 | Business logic error |
-| `RATE_LIMIT_EXCEEDED` | 429 | Too many requests |
-| `INTERNAL_ERROR` | 500 | Server error |
-| `SERVICE_UNAVAILABLE` | 503 | Service temporarily down |
+| Code | HTTP |
+|---|---:|
+| `VALIDATION_ERROR` | 400 |
+| `UNAUTHORIZED` | 401 |
+| `FORBIDDEN` | 403 |
+| `NOT_FOUND` | 404 |
+| `CONFLICT` | 409 |
+| `BUSINESS_RULE_VIOLATION` | 422 |
+| `RATE_LIMIT_EXCEEDED` | 429 |
+| `INTERNAL_ERROR` | 500 |
+| `SERVICE_UNAVAILABLE` | 503 |
 
----
+Доменные исключения мапятся в HTTP на уровне `interface/api/exception_handlers.py` конкретного сервиса.
 
-## Pagination
+## Списки и пагинация
 
-### Query Parameters
+Списочные endpoints принимают `limit`/`offset` или `page`/`page_size`; выбранный формат должен быть стабильным внутри сервиса.
 
 ```http
-GET /api/v1/users?page=1&page_size=20
+GET /api/v1/restaurants?limit=20&offset=0
+GET /api/v1/reviews?target_type=courier&target_id={courier_id}
 ```
 
-**Parameters:**
-- `page` (integer, default: 1) - Page number
-- `page_size` (integer, default: 20, max: 100) - Items per page
-- `sort` (string) - Sort field
-- `order` (asc|desc, default: asc) - Sort order
-
-### Response
+Ответ со списком:
 
 ```json
 {
-  "items": [...],
-  "pagination": {
-    "page": 1,
-    "page_size": 20,
-    "total_items": 42,
-    "total_pages": 3,
-    "has_next": true,
-    "has_prev": false
-  }
+  "items": [],
+  "total": 0,
+  "limit": 20,
+  "offset": 0
 }
 ```
 
-### Links (Optional, for HATEOAS)
+Если сервис уже возвращает иной совместимый формат, он сохраняется до следующей версии API.
 
-```json
-{
-  "items": [...],
-  "pagination": {...},
-  "links": {
-    "self": "/api/v1/users?page=2",
-    "first": "/api/v1/users?page=1",
-    "prev": "/api/v1/users?page=1",
-    "next": "/api/v1/users?page=3",
-    "last": "/api/v1/users?page=3"
-  }
-}
-```
+## Идемпотентность
 
----
-
-## Filtering & Searching
-
-### Query Parameters
+Критичные команды принимают `Idempotency-Key`. Сейчас этот контракт реализован для резервирования платежа:
 
 ```http
-GET /api/v1/restaurants?cuisine=italian&city=moscow&min_rating=4.5
-GET /api/v1/orders?status=pending&user_id=123&created_after=2026-01-01
-```
-
-### Search
-
-```http
-GET /api/v1/restaurants?q=pizza
-GET /api/v1/menu-items?search=burger
-```
-
----
-
-## Sorting
-
-```http
-GET /api/v1/restaurants?sort=rating&order=desc
-GET /api/v1/orders?sort=created_at&order=asc
-```
-
-Multiple fields:
-```http
-GET /api/v1/restaurants?sort=rating,name&order=desc,asc
-```
-
----
-
-## Field Selection (Sparse Fieldsets)
-
-Request only specific fields:
-
-```http
-GET /api/v1/users?fields=id,name,email
-```
-
----
-
-## Timestamps
-
-### Format
-
-Use **ISO 8601** format with timezone:
-
-```json
-{
-  "created_at": "2026-01-04T12:34:56.789Z",
-  "updated_at": "2026-01-04T15:30:00.123Z"
-}
-```
-
-### Timezone
-
-- All timestamps in **UTC**
-- Client converts to local timezone
-
----
-
-## Idempotency
-
-### Idempotency Key
-
-For critical operations (payments, order creation):
-
-```http
-POST /api/v1/orders
+POST /api/v1/payments/reservations
 Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
 ```
 
-**Behavior:**
-- Server stores result with key
-- Duplicate requests return same result
-- Key expires after 24 hours
+Повтор с тем же ключом должен вернуть ранее созданный результат или эквивалентное состояние без повторного side effect.
 
----
+## WebSocket
 
-## Versioning
+Публичный tracking endpoint:
 
-### URL Versioning
-
-```
-/api/v1/users
-/api/v2/users
-```
-
-**When to version:**
-- Breaking changes to request/response format
-- Changed business logic
-- Removed fields
-
-**Version support:**
-- Support at least 2 versions simultaneously
-- Deprecation notice 6 months before removal
-
----
-
-## Rate Limiting
-
-### Headers
-
-```http
-X-RateLimit-Limit: 1000
-X-RateLimit-Remaining: 999
-X-RateLimit-Reset: 1641312000
-```
-
-### Response (when exceeded)
-
-```http
-HTTP/1.1 429 Too Many Requests
-Retry-After: 3600
-```
-
-```json
-{
-  "error": {
-    "code": "RATE_LIMIT_EXCEEDED",
-    "message": "Rate limit exceeded. Try again in 1 hour.",
-    "retry_after": 3600
-  }
-}
-```
-
----
-
-## CORS
-
-**Allowed origins** (configured in API Gateway):
-```
-http://localhost:3000
-https://app.fooddelivery.com
-```
-
-**Allowed methods:**
-```
-GET, POST, PUT, PATCH, DELETE, OPTIONS
-```
-
-**Allowed headers:**
-```
-Content-Type, Authorization, X-Request-ID, Idempotency-Key
-```
-
----
-
-## WebSocket Conventions
-
-### Connection URL
-
-Public URL (through API Gateway):
-```
+```text
 ws://localhost:8000/ws/orders/{order_id}
 ```
 
-Internal service URL (service-to-service/dev diagnostics):
-```
+Delivery Service принимает то же соединение на внутреннем порту:
+
+```text
 ws://localhost:8005/ws/orders/{order_id}
 ```
 
-### Message Format
+Соединение push-only: клиент держит WebSocket открытым, сервер отправляет события доставки.
 
-**Client → Server:**
-```json
-{
-  "type": "subscribe",
-  "order_id": "uuid-here"
-}
-```
+Пример server-to-client сообщения:
 
-**Server → Client:**
 ```json
 {
   "type": "location_update",
-  "data": {
-    "order_id": "uuid-here",
-    "latitude": 55.7558,
-    "longitude": 37.6173,
-    "timestamp": "2026-01-04T12:34:56.789Z"
-  }
+  "order_id": "2f7f05cf-4c1a-4b0d-81c9-b45b8dd86dd8",
+  "latitude": 55.7558,
+  "longitude": 37.6173,
+  "timestamp": "2026-05-31T12:34:56.789Z"
 }
 ```
 
----
+## Health и Metrics
 
-## Health Check Endpoints
-
-Every service must implement:
+Каждый сервис отдаёт:
 
 ```http
 GET /health
+GET /metrics
 ```
 
-**Response:**
-```json
-{
-  "status": "healthy",
-  "version": "1.0.0",
-  "timestamp": "2026-01-04T12:34:56.789Z",
-  "dependencies": {
-    "database": "healthy",
-    "kafka": "healthy",
-    "redis": "healthy"
-  }
-}
-```
+`/ready` добавляется только там, где readiness отличается от liveness. API Gateway уже предоставляет `/ready`.
 
----
+## OpenAPI
 
-## OpenAPI / Swagger
-
-- All services expose `/docs` (Swagger UI)
-- All services expose `/openapi.json` (OpenAPI spec)
-- Keep OpenAPI spec up-to-date
-
----
-
-## Examples
-
-### Create Order
-
-**Request:**
-```http
-POST /api/v1/orders
-Content-Type: application/json
-Authorization: Bearer eyJhbGc...
-Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
-
-{
-  "restaurant_id": "uuid-here",
-  "items": [
-    {
-      "menu_item_id": "uuid-1",
-      "quantity": 2
-    },
-    {
-      "menu_item_id": "uuid-2",
-      "quantity": 1
-    }
-  ],
-  "delivery_address": {
-    "street": "123 Main St",
-    "city": "Moscow",
-    "postal_code": "101000"
-  }
-}
-```
-
-**Response:**
-```http
-HTTP/1.1 201 Created
-Location: /api/v1/orders/uuid-order
-Content-Type: application/json
-
-{
-  "id": "uuid-order",
-  "status": "pending",
-  "restaurant_id": "uuid-here",
-  "total_amount": 1250.00,
-  "created_at": "2026-01-04T12:34:56.789Z"
-}
-```
-
----
-
-## References
-
-- [REST API Guidelines](https://restfulapi.net/)
-- [HTTP Status Codes](https://httpstatuses.com/)
-- [JSON:API Specification](https://jsonapi.org/)
+FastAPI-сервисы публикуют `/docs` и `/openapi.json` для локальной диагностики контрактов.

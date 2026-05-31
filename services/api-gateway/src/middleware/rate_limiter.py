@@ -31,6 +31,33 @@ class RateLimiter:
     def _get_metrics(request: Request) -> GatewayMetrics | None:
         return getattr(request.app.state, "gateway_metrics", None)
 
+    @staticmethod
+    def _too_many_requests(
+        message: str,
+        retry_after: int,
+        *,
+        limit: int | None = None,
+        remaining: int = 0,
+    ) -> HTTPException:
+        """Build a 429 response with standard throttling headers."""
+        headers = {
+            "Retry-After": str(retry_after),
+            "X-RateLimit-Remaining": str(remaining),
+        }
+        if limit is not None:
+            headers["X-RateLimit-Limit"] = str(limit)
+        return HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "error": {
+                    "code": "RATE_LIMIT_EXCEEDED",
+                    "message": message,
+                    "retry_after": retry_after,
+                }
+            },
+            headers=headers,
+        )
+
     async def _check_limit(
         self,
         key: str,
@@ -72,15 +99,10 @@ class RateLimiter:
         if metrics is not None:
             metrics.record_rate_limit_decision(scope, "allowed" if allowed else "rejected")
         if not allowed:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail={
-                    "error": {
-                        "code": "RATE_LIMIT_EXCEEDED",
-                        "message": message,
-                        "retry_after": window,
-                    }
-                },
+            raise self._too_many_requests(
+                message,
+                retry_after=window,
+                limit=limit + (burst or 0),
             )
 
     async def _record_failure(self, key: str, window: int) -> None:
@@ -123,15 +145,9 @@ class RateLimiter:
             metrics = self._get_metrics(request)
             if metrics is not None:
                 metrics.record_rate_limit_decision("login_cooldown", "rejected")
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail={
-                    "error": {
-                        "code": "RATE_LIMIT_EXCEEDED",
-                        "message": f"Too many failed attempts. Try again in {remaining} seconds.",
-                        "retry_after": remaining,
-                    }
-                },
+            raise self._too_many_requests(
+                f"Too many failed attempts. Try again in {remaining} seconds.",
+                retry_after=remaining,
             )
 
         # Per-IP limits

@@ -208,14 +208,31 @@ class TestRateLimiting:
         self,
         gateway_client_with_user_service,
         user_credentials,
+        monkeypatch,
     ):
-        """Rate limit headers are optional; response should succeed or be limited."""
-        response = gateway_client_with_user_service.post(
-            "/api/v1/auth/login",
-            json={
-                "email": user_credentials["email"],
-                "password": user_credentials["password"],
-            },
-        )
+        """Throttled responses expose Retry-After and remaining-counter headers."""
+        from src.config import settings
 
-        assert response.status_code in [200, 429]
+        monkeypatch.setattr(settings, "login_per_ip_minute", 1)
+        monkeypatch.setattr(settings, "login_per_ip_hour", 1)
+        monkeypatch.setattr(settings, "login_per_account_minute", 1000)
+        monkeypatch.setattr(settings, "login_per_account_hour", 1000)
+        monkeypatch.setattr(settings, "login_per_ip_account_minute", 1000)
+        monkeypatch.setattr(settings, "login_max_fails_count", 1000)
+
+        def _login():
+            return gateway_client_with_user_service.post(
+                "/api/v1/auth/login",
+                json={
+                    "email": user_credentials["email"],
+                    "password": user_credentials["password"],
+                },
+            )
+
+        assert _login().status_code == 200
+
+        limited = _login()
+        assert limited.status_code == 429
+        assert int(limited.headers["Retry-After"]) > 0
+        assert limited.headers["X-RateLimit-Remaining"] == "0"
+        assert "X-RateLimit-Limit" in limited.headers

@@ -34,16 +34,6 @@
 
 **Приоритет:** Medium
 
-### Rate limit response headers
-
-**Проблема:** не все rate-limit ответы возвращают полный набор headers вроде `Retry-After` и remaining counters.
-
-**Что сделать:** унифицировать headers для throttled responses.
-
-**Зона:** `services/api-gateway/src/middleware/rate_limiter.py`
-
-**Приоритет:** Low
-
 ## Authentication
 
 ### Refresh token blacklist by JTI

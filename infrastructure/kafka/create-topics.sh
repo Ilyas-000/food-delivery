@@ -8,6 +8,19 @@ BOOTSTRAP_SERVER=${BOOTSTRAP_SERVER:-localhost:9092}
 PARTITIONS=${PARTITIONS:-3}  # 3 partitions for better parallelism
 REPLICATION_FACTOR=${REPLICATION_FACTOR:-1}  # 1 for local dev
 
+# Execution mode:
+#   docker (default) - run the Kafka CLI on the host via `docker exec` into the broker container
+#   direct           - run the Kafka CLI directly (used by the in-cluster kafka-init compose job)
+KAFKA_EXEC_MODE=${KAFKA_EXEC_MODE:-docker}
+
+kafka_cli() {
+  if [ "$KAFKA_EXEC_MODE" = "direct" ]; then
+    "$@"
+  else
+    docker exec "$KAFKA_CONTAINER" "$@"
+  fi
+}
+
 # Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -76,7 +89,7 @@ echo ""
 echo -e "${YELLOW}Waiting for Kafka to be ready...${NC}"
 MAX_RETRIES=30
 RETRY=0
-while ! docker exec "$KAFKA_CONTAINER" kafka-broker-api-versions --bootstrap-server "$BOOTSTRAP_SERVER" &> /dev/null; do
+while ! kafka_cli kafka-broker-api-versions --bootstrap-server "$BOOTSTRAP_SERVER" &> /dev/null; do
   RETRY=$((RETRY + 1))
   if [ $RETRY -gt $MAX_RETRIES ]; then
     echo -e "${YELLOW}Kafka is not ready after ${MAX_RETRIES} attempts. Exiting.${NC}"
@@ -99,7 +112,7 @@ for topic_config in "${TOPICS[@]}"; do
 
   echo -e "${BLUE}→ ${topic}${NC} (partitions: $partitions, retention: $retention ms)"
 
-  docker exec "$KAFKA_CONTAINER" kafka-topics \
+  kafka_cli kafka-topics \
     --bootstrap-server "$BOOTSTRAP_SERVER" \
     --create \
     --if-not-exists \
@@ -116,7 +129,7 @@ echo ""
 
 # List all topics
 echo -e "${BLUE}Listing all topics:${NC}"
-docker exec "$KAFKA_CONTAINER" kafka-topics \
+kafka_cli kafka-topics \
   --bootstrap-server "$BOOTSTRAP_SERVER" \
   --list
 

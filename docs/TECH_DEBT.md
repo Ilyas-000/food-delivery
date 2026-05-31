@@ -100,16 +100,6 @@
 
 **Приоритет:** High
 
-### Kafka topic provisioning
-
-**Проблема:** auto-create topics отключён. Скрипт `infrastructure/kafka/create-topics.sh` используется в тестовом bootstrap, но topic provisioning не является обязательной частью обычного startup.
-
-**Что сделать:** сделать Kafka topics явным provisioning step в локальном запуске и CI, либо выделить отдельный init job.
-
-**Зона:** `infrastructure/kafka/create-topics.sh`, `Makefile`, `infrastructure/docker-compose.yml`
-
-**Приоритет:** Medium
-
 ### Consumer readiness
 
 **Проблема:** сервис может отвечать на `/health`, но Kafka consumer ещё находится в retry startup loop. Это корректно для liveness, но не отражает готовность ingest/notification функций.

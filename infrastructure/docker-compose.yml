@@ -83,6 +83,21 @@ services:
       retries: 10
       start_period: 60s
 
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: food-delivery-kafka-init
+    init: true
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_EXEC_MODE: direct
+      BOOTSTRAP_SERVER: kafka:9092
+    volumes:
+      - ./kafka/create-topics.sh:/usr/local/bin/create-topics.sh:ro
+    entrypoint: ["bash", "/usr/local/bin/create-topics.sh"]
+    restart: "no"
+
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: food-delivery-kafka-ui

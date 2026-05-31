@@ -339,6 +339,7 @@ def client_with_circuit_breaker(mock_redis):
     from src.config import settings
     from src.middleware.circuit_breaker import CircuitBreakerMiddleware
     from src.middleware.logging import RequestLoggingMiddleware
+    from src.observability import GatewayMetrics
     from src.routes import health, proxy
 
     test_app = FastAPI(title="Test API Gateway")
@@ -346,6 +347,7 @@ def client_with_circuit_breaker(mock_redis):
     test_app.add_middleware(RequestLoggingMiddleware)
     test_app.add_middleware(
         CircuitBreakerMiddleware,
+        gateway_metrics=GatewayMetrics(settings.service_name),
         failure_threshold=settings.circuit_breaker_failure_threshold,
         recovery_timeout=settings.circuit_breaker_recovery_timeout,
     )

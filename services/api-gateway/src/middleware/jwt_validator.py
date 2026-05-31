@@ -42,8 +42,16 @@ def _decode_access_token(token: str) -> JWTPayload | None:
         if user_id and role and token_type == "access":  # nosec B105
             return JWTPayload(user_id=user_id, role=role, email=email)
 
+        logger.debug(
+            "Optional auth rejected token",
+            reason="missing_claims_or_wrong_type",
+            has_user_id=bool(user_id),
+            has_role=bool(role),
+            token_type=token_type,
+        )
         return None
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as err:
+        logger.debug("Optional auth token decode failed", error=str(err))
         return None
 
 
@@ -78,12 +86,18 @@ async def verify_jwt_token(
     token_type = payload.get("type")
 
     if not user_id or not role:
+        logger.warning(
+            "JWT token missing required claims",
+            has_user_id=bool(user_id),
+            has_role=bool(role),
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": {"code": "INVALID_TOKEN", "message": "Missing required claims"}},
         )
 
     if token_type != "access":  # nosec B105
+        logger.warning("JWT token has invalid type", user_id=user_id, token_type=token_type)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": {"code": "INVALID_TOKEN", "message": "Invalid token type"}},
@@ -100,6 +114,12 @@ def require_role(*allowed_roles: str) -> Callable[..., Awaitable[JWTPayload]]:
 
     async def role_checker(user: JWTPayload = Depends(verify_jwt_token)) -> JWTPayload:
         if user.role not in allowed_roles:
+            logger.warning(
+                "JWT role check denied",
+                user_id=user.user_id,
+                role=user.role,
+                allowed_roles=allowed_roles,
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={

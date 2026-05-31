@@ -3,10 +3,10 @@
 ## Backlog
 
 - Naming consistency: simplify and clarify naming (DTO/use_case, module names, route names).
-- API responses metadata: large inline `responses` blocks in routes should be simplified or moved.
-- Swagger: дублируются разделы auth/authentication в User Service (`/docs`).
+- ✅ API responses metadata: large inline `responses` block в `auth.register` вынесен в `REGISTER_RESPONSES`.
+- ✅ Swagger: auth router тег приведён к `auth` (совпадает с префиксом `/auth`, как `users` ↔ `/users`).
 - Tests DB: разногласия по стратегии поднятия тестовой БД (auto-create/drop vs ручной жизненный цикл).
-- Redis close: mypy не знает про `aclose()` в redis.asyncio, сейчас есть временный type workaround.
+- ✅ Redis close: `redis==5.2.1` поставляет типизированный `aclose()` (есть `py.typed`); временный Protocol/cast workaround удалён.
 
 ---
 
@@ -59,7 +59,7 @@
 |---|-------|--------|
 | 1 | Дублирование кода | ✅ Done |
 | 2 | jwt_algorithm избыточен | ✅ Done |
-| 3 | Недостаточное логирование | Pending |
+| 3 | Недостаточное логирование | ✅ Done |
 | 4 | get_optional_user не различает ошибки | Pending (nice-to-have) |
 | 5 | email может быть None | ✅ Done (теперь обязательный) |
 | 6 | JTI blacklist | Pending (Phase 2) |

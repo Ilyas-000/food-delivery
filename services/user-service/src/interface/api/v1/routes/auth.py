@@ -10,7 +10,7 @@ Endpoints:
 - POST /api/v1/auth/logout - Logout (revoke refresh token)
 """
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, status
 import structlog
@@ -46,8 +46,62 @@ logger = structlog.get_logger(__name__)
 # Create router with prefix and tags
 router = APIRouter(
     prefix="/auth",
-    tags=["authentication"],
+    tags=["auth"],
 )
+
+REGISTER_RESPONSES: dict[int | str, dict[str, Any]] = {
+    201: {
+        "description": "User successfully registered",
+        "content": {
+            "application/json": {
+                "example": {
+                    "id": "123e4567-e89b-12d3-a456-426614174000",
+                    "email": "john.doe@example.com",
+                    "full_name": "John Doe",
+                    "role": "customer",
+                    "is_active": True,
+                    "phone": "+1234567890",
+                    "created_at": "2024-01-08T10:30:00Z",
+                    "updated_at": "2024-01-08T10:30:00Z",
+                }
+            }
+        },
+    },
+    409: {
+        "description": "User already exists",
+        "content": {
+            "application/json": {
+                "example": {
+                    "error": {
+                        "code": "CONFLICT",
+                        "message": "User with email 'john.doe@example.com' already exists",
+                        "details": {"email": "john.doe@example.com"},
+                        "request_id": "550e8400-e29b-41d4-a716-446655440000",
+                        "timestamp": "2024-01-08T10:30:00Z",
+                    }
+                }
+            }
+        },
+    },
+    422: {
+        "description": "Invalid email or validation error",
+        "content": {
+            "application/json": {
+                "example": {
+                    "error": {
+                        "code": "BUSINESS_RULE_VIOLATION",
+                        "message": (
+                            "Invalid password: Password must be at least 8 characters long"
+                        ),
+                        "details": {"reason": "Password must be at least 8 characters long"},
+                        "request_id": "550e8400-e29b-41d4-a716-446655440000",
+                        "timestamp": "2024-01-08T10:30:00Z",
+                    }
+                }
+            }
+        },
+    },
+}
 
 
 @router.post(
@@ -73,59 +127,7 @@ router = APIRouter(
     - Password is hashed with bcrypt before storage
     - Password hash is never returned in response
     """,
-    responses={
-        201: {
-            "description": "User successfully registered",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "id": "123e4567-e89b-12d3-a456-426614174000",
-                        "email": "john.doe@example.com",
-                        "full_name": "John Doe",
-                        "role": "customer",
-                        "is_active": True,
-                        "phone": "+1234567890",
-                        "created_at": "2024-01-08T10:30:00Z",
-                        "updated_at": "2024-01-08T10:30:00Z",
-                    }
-                }
-            },
-        },
-        409: {
-            "description": "User already exists",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "error": {
-                            "code": "CONFLICT",
-                            "message": "User with email 'john.doe@example.com' already exists",
-                            "details": {"email": "john.doe@example.com"},
-                            "request_id": "550e8400-e29b-41d4-a716-446655440000",
-                            "timestamp": "2024-01-08T10:30:00Z",
-                        }
-                    }
-                }
-            },
-        },
-        422: {
-            "description": "Invalid email or validation error",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "error": {
-                            "code": "BUSINESS_RULE_VIOLATION",
-                            "message": (
-                                "Invalid password: Password must be at least 8 characters long"
-                            ),
-                            "details": {"reason": "Password must be at least 8 characters long"},
-                            "request_id": "550e8400-e29b-41d4-a716-446655440000",
-                            "timestamp": "2024-01-08T10:30:00Z",
-                        }
-                    }
-                }
-            },
-        },
-    },
+    responses=REGISTER_RESPONSES,
 )
 async def register_user(
     request: RegisterUserRequest,

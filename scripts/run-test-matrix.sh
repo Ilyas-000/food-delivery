@@ -57,7 +57,11 @@ run_pytest() {
   print_banner "$subject" "$scope"
   echo "Running ${label}..."
 
-  if (cd "$workdir" && /opt/venv/bin/pytest "$@"); then
+  # Keep pytest cache off the bind-mounted workspace: flock deadlocks (EDEADLK)
+  # on macOS bind mounts. /tmp is the container's own fs, where locking works.
+  local cache_dir="/tmp/pytest-cache/${subject}"
+
+  if (cd "$workdir" && /opt/venv/bin/pytest -o cache_dir="$cache_dir" "$@"); then
     passed=$((passed + 1))
   else
     failed=$((failed + 1))

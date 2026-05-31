@@ -14,6 +14,7 @@ Read-only сервис аналитики. Потребляет Kafka-событ
 ### Health
 
 - `GET /health`
+- `GET /ready`
 - `GET /metrics`
 
 ### Analytics
@@ -70,4 +71,3 @@ make test-analytics-unit
 ## Ограничения
 
 - Сервис не выполняет бизнес-операции; он строит read model из событий.
-- Consumer readiness нужно отделить от liveness для более точной диагностики.

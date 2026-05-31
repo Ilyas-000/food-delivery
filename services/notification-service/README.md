@@ -15,6 +15,7 @@
 ### Health
 
 - `GET /health`
+- `GET /ready`
 - `GET /metrics`
 
 ### Notifications
@@ -70,4 +71,3 @@ make test-notification-unit
 
 - Email и push clients являются mock-адаптерами.
 - История уведомлений хранится in-memory.
-- Consumer readiness нужно отделить от liveness для более точной диагностики.

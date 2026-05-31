@@ -100,16 +100,6 @@
 
 **Приоритет:** High
 
-### Consumer readiness
-
-**Проблема:** сервис может отвечать на `/health`, но Kafka consumer ещё находится в retry startup loop. Это корректно для liveness, но не отражает готовность ingest/notification функций.
-
-**Что сделать:** развести liveness и readiness для Kafka-backed сервисов.
-
-**Зона:** `services/notification-service/src/main.py`, `services/analytics-service/src/main.py`
-
-**Приоритет:** Medium
-
 ## Delivery
 
 ### Persistent delivery storage

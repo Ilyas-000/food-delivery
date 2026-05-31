@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
 
 from shared.observability.prometheus import ServiceMetrics, install_prometheus
@@ -58,25 +58,37 @@ def create_app() -> FastAPI:
 
     @app.get("/health", tags=["health"])
     async def health_check() -> JSONResponse:
-        """Health check endpoint."""
+        """Liveness check - the service process is running."""
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "status": "healthy",
+                "service": settings.service_name,
+                "version": "0.1.0",
+                "timestamp": datetime.now(UTC).isoformat(),
+                "environment": settings.environment,
+            },
+        )
+
+    @app.get("/ready", tags=["health"])
+    async def readiness_check() -> JSONResponse:
+        """Readiness check - Kafka producer and consumer are ready to serve events."""
         consumer = get_notification_event_consumer()
         kafka_producer_status = "disabled"
         kafka_consumer_status = "disabled"
+        ready = True
 
         if settings.kafka_enabled:
             kafka_producer_status = "healthy" if is_event_publisher_ready() else "unhealthy"
             kafka_consumer_status = "healthy" if consumer.is_ready() else "unhealthy"
+            if kafka_producer_status != "healthy" or kafka_consumer_status != "healthy":
+                ready = False
 
-        overall_status = "healthy"
-        if settings.kafka_enabled and (
-            kafka_producer_status != "healthy" or kafka_consumer_status != "healthy"
-        ):
-            overall_status = "unhealthy"
-
+        status_code = status.HTTP_200_OK if ready else status.HTTP_503_SERVICE_UNAVAILABLE
         return JSONResponse(
-            status_code=200,
+            status_code=status_code,
             content={
-                "status": overall_status,
+                "status": "ready" if ready else "not_ready",
                 "service": settings.service_name,
                 "version": "0.1.0",
                 "timestamp": datetime.now(UTC).isoformat(),

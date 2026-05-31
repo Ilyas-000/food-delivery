@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
 
 from shared.observability.prometheus import ServiceMetrics, install_prometheus
@@ -53,25 +53,38 @@ def create_app() -> FastAPI:
 
     @app.get("/health", tags=["health"])
     async def health_check() -> JSONResponse:
-        """Health check endpoint."""
+        """Liveness check - the service process is running."""
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "status": "healthy",
+                "service": settings.service_name,
+                "version": "0.1.0",
+                "timestamp": datetime.now(UTC).isoformat(),
+                "environment": settings.environment,
+            },
+        )
+
+    @app.get("/ready", tags=["health"])
+    async def readiness_check() -> JSONResponse:
+        """Readiness check - storage and Kafka consumer are ready to ingest events."""
         repository = get_analytics_repository_instance()
         consumer = get_analytics_event_consumer()
 
         clickhouse_status = "healthy" if repository.is_ready() else "unhealthy"
         kafka_consumer_status = "disabled"
+        ready = repository.is_ready()
+
         if settings.kafka_enabled:
             kafka_consumer_status = "healthy" if consumer.is_ready() else "unhealthy"
+            if not consumer.is_ready():
+                ready = False
 
-        overall_status = "healthy"
-        if clickhouse_status != "healthy":
-            overall_status = "unhealthy"
-        if settings.kafka_enabled and kafka_consumer_status != "healthy":
-            overall_status = "unhealthy"
-
+        status_code = status.HTTP_200_OK if ready else status.HTTP_503_SERVICE_UNAVAILABLE
         return JSONResponse(
-            status_code=200,
+            status_code=status_code,
             content={
-                "status": overall_status,
+                "status": "ready" if ready else "not_ready",
                 "service": settings.service_name,
                 "version": "0.1.0",
                 "timestamp": datetime.now(UTC).isoformat(),

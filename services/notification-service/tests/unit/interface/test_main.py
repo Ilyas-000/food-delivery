@@ -1,4 +1,4 @@
-"""Unit tests for analytics service entrypoint."""
+"""Unit tests for notification service entrypoint."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -23,7 +23,7 @@ def test_health_endpoint_is_liveness_only() -> None:
 
 
 @pytest.mark.unit()
-def test_ready_endpoint_reports_memory_backend_state() -> None:
+def test_ready_endpoint_reports_ready_when_kafka_disabled() -> None:
     app = create_app()
 
     with TestClient(app) as client:
@@ -32,21 +32,21 @@ def test_ready_endpoint_reports_memory_backend_state() -> None:
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["status"] == "ready"
-    assert data["dependencies"]["storage"] == "memory"
+    assert data["dependencies"]["kafka_consumer"] == "disabled"
 
 
 @pytest.mark.unit()
 def test_ready_endpoint_returns_503_when_consumer_not_ready() -> None:
     app = create_app()
-    repository = AsyncMock()
-    repository.is_ready = MagicMock(return_value=True)
     consumer = AsyncMock()
     consumer.is_ready = MagicMock(return_value=False)
 
     with (
         patch("src.main.settings.kafka_enabled", True),
-        patch("src.main.get_analytics_repository_instance", return_value=repository),
-        patch("src.main.get_analytics_event_consumer", return_value=consumer),
+        patch("src.main.get_notification_event_consumer", return_value=consumer),
+        patch("src.main.init_event_publisher", new=AsyncMock()),
+        patch("src.main.shutdown_event_publisher", new=AsyncMock()),
+        patch("src.main.is_event_publisher_ready", return_value=True),
         TestClient(app) as client,
     ):
         response = client.get("/ready")
@@ -55,25 +55,3 @@ def test_ready_endpoint_returns_503_when_consumer_not_ready() -> None:
     data = response.json()
     assert data["status"] == "not_ready"
     assert data["dependencies"]["kafka_consumer"] == "unhealthy"
-
-
-@pytest.mark.unit()
-@pytest.mark.asyncio()
-async def test_lifespan_starts_repository_and_consumer_when_kafka_enabled() -> None:
-    app = create_app()
-    repository = AsyncMock()
-    repository.is_ready.return_value = True
-    consumer = AsyncMock()
-    consumer.is_ready.return_value = True
-
-    with (
-        patch("src.main.settings.kafka_enabled", True),
-        patch("src.main.get_analytics_repository_instance", return_value=repository),
-        patch("src.main.get_analytics_event_consumer", return_value=consumer),
-    ):
-        async with app.router.lifespan_context(app):
-            repository.start.assert_awaited_once()
-            consumer.start.assert_awaited_once()
-
-    consumer.stop.assert_awaited_once()
-    repository.stop.assert_awaited_once()

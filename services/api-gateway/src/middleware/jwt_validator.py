@@ -1,6 +1,8 @@
 """JWT validation middleware and dependency."""
 
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from enum import Enum
 
 import jwt
 import structlog
@@ -25,8 +27,32 @@ class JWTPayload:
         self.role = role
 
 
-def _decode_access_token(token: str) -> JWTPayload | None:
-    """Decode and validate access token, returning payload or None."""
+class OptionalAuthStatus(str, Enum):
+    """Outcome of optional authentication."""
+
+    ANONYMOUS = "anonymous"  # no (or malformed) Authorization header
+    AUTHENTICATED = "authenticated"  # valid access token
+    INVALID = "invalid"  # token present but expired/invalid/missing claims
+
+
+@dataclass(frozen=True)
+class OptionalAuth:
+    """Result of optional authentication with explicit status.
+
+    Distinguishes "no credentials" from "bad credentials" so public endpoints
+    can stay permissive while diagnostics and audit logs keep precision.
+    """
+
+    status: OptionalAuthStatus
+    user: JWTPayload | None = None
+
+    @property
+    def is_authenticated(self) -> bool:
+        return self.status is OptionalAuthStatus.AUTHENTICATED
+
+
+def _decode_access_token(token: str) -> OptionalAuth:
+    """Decode an optional access token into an authenticated/invalid result."""
     try:
         payload = decode_token(
             token=token,
@@ -40,7 +66,10 @@ def _decode_access_token(token: str) -> JWTPayload | None:
         token_type = payload.get("type")
 
         if user_id and role and token_type == "access":  # nosec B105
-            return JWTPayload(user_id=user_id, role=role, email=email)
+            return OptionalAuth(
+                status=OptionalAuthStatus.AUTHENTICATED,
+                user=JWTPayload(user_id=user_id, role=role, email=email),
+            )
 
         logger.debug(
             "Optional auth rejected token",
@@ -49,10 +78,13 @@ def _decode_access_token(token: str) -> JWTPayload | None:
             has_role=bool(role),
             token_type=token_type,
         )
-        return None
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as err:
-        logger.debug("Optional auth token decode failed", error=str(err))
-        return None
+        return OptionalAuth(status=OptionalAuthStatus.INVALID)
+    except jwt.ExpiredSignatureError as err:
+        logger.debug("Optional auth token rejected", reason="expired", error=str(err))
+        return OptionalAuth(status=OptionalAuthStatus.INVALID)
+    except jwt.InvalidTokenError as err:
+        logger.debug("Optional auth token rejected", reason="invalid", error=str(err))
+        return OptionalAuth(status=OptionalAuthStatus.INVALID)
 
 
 async def verify_jwt_token(
@@ -134,10 +166,19 @@ def require_role(*allowed_roles: str) -> Callable[..., Awaitable[JWTPayload]]:
     return role_checker
 
 
-def get_optional_user(request: Request) -> JWTPayload | None:
-    """Extract user from request if authenticated (optional)."""
+def get_optional_auth(request: Request) -> OptionalAuth:
+    """Resolve optional auth into anonymous / authenticated / invalid."""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        return None
+        return OptionalAuth(status=OptionalAuthStatus.ANONYMOUS)
 
     return _decode_access_token(auth_header[7:])
+
+
+def get_optional_user(request: Request) -> JWTPayload | None:
+    """Extract user from request if authenticated (optional).
+
+    Backward-compatible accessor; use `get_optional_auth` when the caller needs
+    to distinguish anonymous requests from invalid credentials.
+    """
+    return get_optional_auth(request).user

@@ -46,16 +46,6 @@
 
 **Приоритет:** Medium
 
-### Optional auth error semantics
-
-**Проблема:** optional auth paths не всегда различают отсутствие токена, истёкший токен и неверную подпись. Для публичных endpoints это допустимо, но диагностика и audit logs теряют точность.
-
-**Что сделать:** разделить результат optional validation на `anonymous`, `authenticated`, `invalid`.
-
-**Зона:** `services/api-gateway/src/middleware/jwt_validator.py`
-
-**Приоритет:** Low
-
 ## Order Saga
 
 ### Synchronous order creation critical path

@@ -34,6 +34,33 @@ print_banner() {
   printf "${color}============================================================${nc}\n\n"
 }
 
+require_test_databases() {
+  # Integration tests skip themselves when their *_TEST_DATABASE_URL is unset.
+  # Inside the matrix the URLs always come from the test-runner environment, so a
+  # missing one means a broken setup (e.g. reused volume without bootstrap) that
+  # would otherwise hide as a silent skip. Fail loudly instead.
+  local -a missing=()
+  local var
+  for var in \
+    USER_SERVICE_TEST_DATABASE_URL \
+    RESTAURANT_SERVICE_TEST_DATABASE_URL \
+    ORDER_SERVICE_TEST_DATABASE_URL \
+    DELIVERY_SERVICE_TEST_DATABASE_URL \
+    REVIEW_SERVICE_TEST_DATABASE_URL; do
+    if [[ -z "${!var:-}" ]]; then
+      missing+=("$var")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "ERROR: integration matrix requires test database URLs to be set." >&2
+    printf '  missing: %s\n' "${missing[*]}" >&2
+    echo "Run 'make test-deps-up' to bootstrap test databases, or check the" >&2
+    echo "test-runner environment in infrastructure/docker-compose.yml." >&2
+    exit 1
+  fi
+}
+
 has_test_files() {
   local path
 
@@ -61,7 +88,8 @@ run_pytest() {
   # on macOS bind mounts. /tmp is the container's own fs, where locking works.
   local cache_dir="/tmp/pytest-cache/${subject}"
 
-  if (cd "$workdir" && /opt/venv/bin/pytest -o cache_dir="$cache_dir" "$@"); then
+  # -ra surfaces skip/xfail reasons in the summary so unexpected skips are visible.
+  if (cd "$workdir" && /opt/venv/bin/pytest -ra -o cache_dir="$cache_dir" "$@"); then
     passed=$((passed + 1))
   else
     failed=$((failed + 1))
@@ -181,6 +209,12 @@ print_summary() {
     done
   fi
 }
+
+case "$mode" in
+  integration | unit+integration | all | coverage)
+    require_test_databases
+    ;;
+esac
 
 run_repo_tests
 run_service_tests

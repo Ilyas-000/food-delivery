@@ -94,16 +94,6 @@
 
 ## Testing
 
-### Integration test database bootstrap on reused volumes
-
-**Проблема:** PostgreSQL init scripts выполняются только при первом создании volume. На уже существующем volume тестовая БД может отсутствовать, и integration-тесты получают skip вместо полезного failure.
-
-**Что сделать:** добавить явный bootstrap test databases перед integration matrix и считать unexpected skip ошибкой окружения.
-
-**Зона:** `scripts/bootstrap-test-databases.sh`, `infrastructure/postgres/init-databases.sh`, `Makefile`
-
-**Приоритет:** Medium
-
 ### Performance budgets
 
 **Проблема:** есть e2e load smoke на конкурентное создание заказов, но нет зафиксированных целей по p95/p99, throughput, consumer lag и recovery time.

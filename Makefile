@@ -137,7 +137,7 @@ test: ## Run repo-level tests from ./tests only
 
 test-deps-up: ## Start integration test dependencies and wait until healthy
 	@$(MAKE) docker-ready
-	@$(COMPOSE) up -d --force-recreate $(TEST_STACK_SERVICES)
+	@$(COMPOSE) up -d --build --force-recreate $(TEST_STACK_SERVICES)
 	@bash scripts/bootstrap-test-databases.sh
 	@$(MAKE) wait-http URL=http://localhost:8001/health WAIT_HTTP_RETRIES=30
 	@$(MAKE) wait-http URL=http://localhost:8002/health WAIT_HTTP_RETRIES=30
@@ -148,7 +148,7 @@ test-deps-up: ## Start integration test dependencies and wait until healthy
 
 test-e2e-deps-up: ## Start e2e test dependencies and wait until healthy
 	@$(MAKE) docker-ready
-	@$(COMPOSE) up -d --force-recreate $(E2E_STACK_SERVICES)
+	@$(COMPOSE) up -d --build --force-recreate $(E2E_STACK_SERVICES)
 	@bash infrastructure/kafka/create-topics.sh
 	@bash scripts/bootstrap-test-databases.sh
 	@$(MAKE) wait-http URL=http://localhost:8000/health WAIT_HTTP_RETRIES=60
@@ -211,7 +211,7 @@ test-service-prepare: ## Start required dependencies for SERVICE integration/e2e
 ifdef SERVICE
 	@case "$(SERVICE)" in \
 		api-gateway) \
-			$(COMPOSE) up -d postgres redis user-service order-service kafka clickhouse analytics-service review-service; \
+			$(COMPOSE) up -d --build postgres redis user-service order-service kafka clickhouse analytics-service review-service; \
 			bash scripts/bootstrap-test-databases.sh; \
 			$(MAKE) wait-http URL=http://localhost:8001/health WAIT_HTTP_RETRIES=30; \
 			$(MAKE) wait-http URL=http://localhost:8003/health WAIT_HTTP_RETRIES=30; \
@@ -220,7 +220,7 @@ ifdef SERVICE
 			$(MAKE) wait-http URL=http://localhost:8008/health WAIT_HTTP_RETRIES=30; \
 			;; \
 		order-service) \
-			$(COMPOSE) up -d postgres redis restaurant-service payment-service delivery-service; \
+			$(COMPOSE) up -d --build postgres redis restaurant-service payment-service delivery-service; \
 			bash scripts/bootstrap-test-databases.sh; \
 			$(MAKE) wait-http URL=http://localhost:8002/health WAIT_HTTP_RETRIES=30; \
 			$(MAKE) wait-http URL=http://localhost:8004/health WAIT_HTTP_RETRIES=30; \
